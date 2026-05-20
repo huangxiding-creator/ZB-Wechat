@@ -1,0 +1,300 @@
+#!/usr/bin/env node
+/**
+ * 总包公号情报系统 - 主入口
+ *
+ * 功能:
+ * 1. 定时扫描监控公众号列表中的最新文章
+ * 2. AI驱动的干货筛选、核心观点提炼、多维度评分
+ * 3. 智能话题分类与优先级排序
+ * 4. 生成"总包公号情报"Markdown快报
+ * 5. 推送企业微信 + 本地存档
+ */
+
+import * as dotenv from 'dotenv'
+dotenv.config()
+
+import * as path from 'path'
+import chalk from 'chalk'
+import { WeChatAPI } from '../api'
+import { GlmClient } from './glm-client'
+import { ArticleScanner } from './scanner'
+import { ContentAnalyzer } from './analyzer'
+import { BriefingGenerator } from './briefing-generator'
+import { Publisher } from './publisher'
+import { Scheduler } from './scheduler'
+import {
+  IntelligenceConfig,
+  IntelligenceRunStats,
+  IntelligenceBriefing
+} from './types'
+
+const VERSION = '1.0.0'
+
+const DEFAULT_CONFIG: IntelligenceConfig = {
+  scheduleCron: '0 20 * * *',
+  scanHours: 24,
+  minScore: 8,
+  accountListFile: '公众号监控列表.txt',
+  keywordsFile: '关注的领域.txt',
+  archiveDir: 'archives',
+  glm: {
+    apiKey: process.env.GLM_API_KEY || '',
+    baseUrl: process.env.GLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+    model: process.env.GLM_MODEL || 'glm-4-flash',
+    maxTokens: 2048,
+    temperature: 0.7
+  },
+  wecom: {
+    webhookUrl: process.env.WEWORK_WEBHOOK_URL || '',
+    maxMessageLength: 3800
+  }
+}
+
+class IntelligenceSystem {
+  private config: IntelligenceConfig
+  private scheduler: Scheduler | null = null
+
+  constructor(config?: Partial<IntelligenceConfig>) {
+    this.config = { ...DEFAULT_CONFIG, ...config }
+    this.validateConfig()
+  }
+
+  /**
+   * 验证配置
+   */
+  private validateConfig(): void {
+    if (!this.config.glm.apiKey) {
+      throw new Error('GLM API Key未配置。请在 .env 文件中设置 GLM_API_KEY')
+    }
+    if (!this.config.wecom.webhookUrl) {
+      console.log(chalk.yellow('  企业微信Webhook未配置，将跳过推送'))
+    }
+  }
+
+  /**
+   * 执行一次情报采集
+   */
+  async runOnce(): Promise<IntelligenceRunStats> {
+    const startTime = Date.now()
+    console.log(chalk.bold.cyan('\n╔══════════════════════════════════════════════╗'))
+    console.log(chalk.bold.cyan('║     总包公号情报系统 v' + VERSION + '                  ║'))
+    console.log(chalk.bold.cyan('╚══════════════════════════════════════════════╝\n'))
+
+    const stats: IntelligenceRunStats = {
+      startTime,
+      endTime: 0,
+      durationMs: 0,
+      accountsScanned: 0,
+      articlesScanned: 0,
+      articlesAnalyzed: 0,
+      dryGoodsFound: 0,
+      messagesSent: 0,
+      errors: []
+    }
+
+    try {
+      // 1. 初始化组件
+      const apiKey = this.loadWeChatApiKey()
+      const wechatApi = new WeChatAPI(apiKey)
+      const glmClient = new GlmClient({
+        apiKey: this.config.glm.apiKey,
+        baseUrl: this.config.glm.baseUrl,
+        model: this.config.glm.model,
+        maxTokens: this.config.glm.maxTokens,
+        temperature: this.config.glm.temperature
+      })
+
+      const scanner = new ArticleScanner(
+        wechatApi,
+        this.config.keywordsFile,
+        this.config.scanHours
+      )
+      const analyzer = new ContentAnalyzer(glmClient, this.config.minScore)
+      const generator = new BriefingGenerator()
+      const publisher = new Publisher(
+        this.config.wecom.webhookUrl,
+        this.config.archiveDir,
+        this.config.wecom.maxMessageLength
+      )
+
+      // 2. 加载公众号列表
+      console.log(chalk.cyan('📋 加载配置...'))
+      const accountNames = scanner.loadAccountList(this.config.accountListFile)
+      stats.accountsScanned = accountNames.length
+
+      // 3. 扫描文章
+      console.log(chalk.cyan('\n🔍 开始扫描公众号最新文章...'))
+      const scanResult = await scanner.scanAll(accountNames)
+      stats.articlesScanned = scanResult.articles.length
+      stats.errors.push(...scanResult.errors)
+
+      if (scanResult.articles.length === 0) {
+        console.log(chalk.yellow('\n  未发现与关注领域相关的新文章'))
+
+        // 仍然生成空快报
+        const briefing = generator.generate([], 0, this.getToday())
+        await publisher.publish(briefing)
+
+        stats.endTime = Date.now()
+        stats.durationMs = stats.endTime - startTime
+        return stats
+      }
+
+      console.log(chalk.green(`\n  扫描到 ${scanResult.articles.length} 篇相关文章`))
+
+      // 4. AI分析
+      console.log(chalk.cyan('\n🤖 AI分析文章内容...'))
+      const analysisResult = await analyzer.analyzeBatch(
+        scanResult.articles,
+        async (article) => scanner.fetchFullContent(article)
+      )
+      stats.articlesAnalyzed = analysisResult.analyzed.length
+      stats.dryGoodsFound = analysisResult.analyzed.filter(a => a.isDryGood).length
+
+      for (const err of analysisResult.errors) {
+        stats.errors.push({ account: err.title, error: err.error })
+      }
+
+      console.log(chalk.green(`\n  分析完成: ${stats.dryGoodsFound} 篇干货 (共${stats.articlesAnalyzed}篇)`))
+
+      // 5. 生成快报
+      console.log(chalk.cyan('\n📝 生成情报快报...'))
+      const briefing: IntelligenceBriefing = generator.generate(
+        analysisResult.analyzed,
+        stats.articlesScanned,
+        this.getToday()
+      )
+
+      // 6. 发布
+      console.log(chalk.cyan('\n📡 发布快报...'))
+      const publishResult = await publisher.publish(briefing)
+      stats.messagesSent = publishResult.messagesSent
+
+      console.log(chalk.bold.green('\n✨ 情报采集完成!'))
+      console.log(chalk.gray(`  扫描公众号: ${stats.accountsScanned} 个`))
+      console.log(chalk.gray(`  相关文章: ${stats.articlesScanned} 篇`))
+      console.log(chalk.gray(`  干货文章: ${stats.dryGoodsFound} 篇`))
+      console.log(chalk.gray(`  消息推送: ${stats.messagesSent} 条`))
+      console.log(chalk.gray(`  GLM调用: ${glmClient.getRequestCount()} 次`))
+
+      if (stats.errors.length > 0) {
+        console.log(chalk.yellow(`  错误: ${stats.errors.length} 个`))
+        for (const err of stats.errors) {
+          console.log(chalk.gray(`    - ${err.account}: ${err.error}`))
+        }
+      }
+
+    } catch (error) {
+      console.error(chalk.red('\n❌ 情报采集失败:'), error)
+      stats.errors.push({
+        account: '系统',
+        error: error instanceof Error ? error.message : String(error)
+      })
+    }
+
+    stats.endTime = Date.now()
+    stats.durationMs = stats.endTime - startTime
+    const durationSec = Math.floor(stats.durationMs / 1000)
+    console.log(chalk.gray(`\n  耗时: ${durationSec}秒\n`))
+
+    return stats
+  }
+
+  /**
+   * 启动定时调度模式
+   */
+  startScheduled(): void {
+    console.log(chalk.bold.cyan('\n╔══════════════════════════════════════════════╗'))
+    console.log(chalk.bold.cyan('║     总包公号情报系统 v' + VERSION + ' (定时模式)      ║'))
+    console.log(chalk.bold.cyan('╚══════════════════════════════════════════════╝\n'))
+
+    this.scheduler = new Scheduler(
+      this.config.scheduleCron,
+      async () => { await this.runOnce() }
+    )
+
+    this.scheduler.start()
+
+    console.log(chalk.gray('\n  按 Ctrl+C 退出\n'))
+
+    // 保持进程运行
+    process.on('SIGINT', () => {
+      console.log(chalk.yellow('\n  正在停止...'))
+      if (this.scheduler) {
+        this.scheduler.stop()
+      }
+      process.exit(0)
+    })
+
+    process.on('SIGTERM', () => {
+      if (this.scheduler) {
+        this.scheduler.stop()
+      }
+      process.exit(0)
+    })
+  }
+
+  /**
+   * 加载微信API Key
+   */
+  private loadWeChatApiKey(): string {
+    const apiKeyFile = path.resolve('.api-key')
+    if (require('fs').existsSync(apiKeyFile)) {
+      const key = require('fs').readFileSync(apiKeyFile, 'utf-8').trim()
+      if (key && key.length >= 20) {
+        return key
+      }
+    }
+
+    const envKey = process.env.WECHAT_API_KEY
+    if (envKey && envKey.length >= 20) {
+      return envKey
+    }
+
+    throw new Error(
+      '微信API Key未找到。请确保 .api-key 文件存在或设置 WECHAT_API_KEY 环境变量'
+    )
+  }
+
+  private getToday(): string {
+    const now = new Date()
+    return `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`
+  }
+}
+
+// CLI入口
+async function main() {
+  const args = process.argv.slice(2)
+  const mode = args[0] || 'once'
+  const cronArg = args.find(a => a.startsWith('--cron='))
+
+  const config: Partial<IntelligenceConfig> = {}
+  if (cronArg) {
+    config.scheduleCron = cronArg.split('=')[1] || '0 20 * * *'
+  }
+
+  const system = new IntelligenceSystem(config)
+
+  switch (mode) {
+    case 'schedule':
+    case 'scheduled':
+    case 'daemon':
+      system.startScheduled()
+      break
+    case 'once':
+    default:
+      await system.runOnce()
+      break
+  }
+}
+
+// 导出供外部使用
+export { IntelligenceSystem, IntelligenceConfig }
+
+// 直接运行
+if (require.main === module) {
+  main().catch(error => {
+    console.error(chalk.red('启动失败:'), error)
+    process.exit(1)
+  })
+}
