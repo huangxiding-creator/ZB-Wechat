@@ -12,19 +12,26 @@ export class BriefingGenerator {
   generate(
     articles: AnalyzedArticle[],
     totalScanned: number,
-    date: string
+    date: string,
+    accountsScanned: number
   ): IntelligenceBriefing {
-    // 只保留干货文章
+    // 只保留干货文章，并按URL去重
     const dryGoods = articles.filter(a => a.isDryGood)
+    const seenUrls = new Set<string>()
+    const unique = dryGoods.filter(a => {
+      if (seenUrls.has(a.originalUrl)) return false
+      seenUrls.add(a.originalUrl)
+      return true
+    })
 
     // 按优先级排序：必读 > 推荐 > 参考
-    const sorted = this.sortByPriority(dryGoods)
+    const sorted = this.sortByPriority(unique)
 
     // 计算热门话题（保留数据，不再在快报中展示标签）
     const trendingTopics = this.calculateTrendingTopics(sorted)
 
     // 生成Markdown
-    const markdown = this.generateMarkdown(sorted, totalScanned, date)
+    const markdown = this.generateMarkdown(sorted, totalScanned, date, accountsScanned)
 
     return {
       date,
@@ -82,7 +89,8 @@ export class BriefingGenerator {
   private generateMarkdown(
     articles: AnalyzedArticle[],
     totalScanned: number,
-    date: string
+    date: string,
+    accountsScanned: number
   ): string {
     const lines: string[] = []
 
@@ -90,7 +98,7 @@ export class BriefingGenerator {
     lines.push(`## 总包公号情报`)
     lines.push('')
     lines.push(`**日期**: ${date}`)
-    lines.push(`**扫描**: ${totalScanned} 篇 | **干货**: ${articles.length} 篇`)
+    lines.push(`**扫描**: ${accountsScanned}个公众号 | ${totalScanned}篇文章 | 干货${articles.length}篇`)
     lines.push('')
     lines.push('---')
     lines.push('')
@@ -144,7 +152,7 @@ export class BriefingGenerator {
     const lines: string[] = []
 
     lines.push(`**${article.title}**`)
-    lines.push(`> 来源: ${article.accountName}`)
+    lines.push(`> 来源: ${article.accountName} | ${article.publishTime}`)
     lines.push(`> 核心洞见: ${article.coreInsight}`)
     lines.push(`> [查看原文](${article.originalUrl})`)
     lines.push('')

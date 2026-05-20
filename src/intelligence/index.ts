@@ -133,7 +133,7 @@ class IntelligenceSystem {
         console.log(chalk.yellow('\n  未发现与关注领域相关的新文章'))
 
         // 仍然生成空快报
-        const briefing = generator.generate([], 0, this.getToday())
+        const briefing = generator.generate([], 0, this.getToday(), stats.accountsScanned)
         await publisher.publish(briefing)
 
         stats.endTime = Date.now()
@@ -163,7 +163,8 @@ class IntelligenceSystem {
       const briefing: IntelligenceBriefing = generator.generate(
         analysisResult.analyzed,
         stats.articlesScanned,
-        this.getToday()
+        this.getToday(),
+        stats.accountsScanned
       )
 
       // 6. 发布
