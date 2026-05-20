@@ -14,6 +14,7 @@ import * as dotenv from 'dotenv'
 dotenv.config()
 
 import * as path from 'path'
+import * as fs from 'fs'
 import chalk from 'chalk'
 import { WeChatAPI } from '../api'
 import { GlmClient } from './glm-client'
@@ -239,8 +240,8 @@ class IntelligenceSystem {
    */
   private loadWeChatApiKey(): string {
     const apiKeyFile = path.resolve('.api-key')
-    if (require('fs').existsSync(apiKeyFile)) {
-      const key = require('fs').readFileSync(apiKeyFile, 'utf-8').trim()
+    if (fs.existsSync(apiKeyFile)) {
+      const key = fs.readFileSync(apiKeyFile, 'utf-8').trim()
       if (key && key.length >= 20) {
         return key
       }

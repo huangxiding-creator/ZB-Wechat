@@ -49,27 +49,37 @@ export class Publisher {
     let sentCount = 0
 
     for (const msg of messages) {
-      try {
-        const response = await axios.post(
-          this.webhookUrl,
-          {
-            msgtype: 'markdown',
-            markdown: { content: msg }
-          },
-          {
-            timeout: 15000,
-            headers: { 'Content-Type': 'application/json' }
-          }
-        )
+      let delivered = false
 
-        if (response.data?.errcode === 0) {
-          sentCount++
-          console.log(`  [发布器] 企业微信消息 ${sentCount}/${messages.length} 发送成功`)
-        } else {
-          console.error(`  [发布器] 企业微信发送失败: ${response.data?.errmsg}`)
+      for (let attempt = 0; attempt < 2 && !delivered; attempt++) {
+        try {
+          const response = await axios.post(
+            this.webhookUrl,
+            {
+              msgtype: 'markdown',
+              markdown: { content: msg }
+            },
+            {
+              timeout: 15000,
+              headers: { 'Content-Type': 'application/json' }
+            }
+          )
+
+          if (response.data?.errcode === 0) {
+            sentCount++
+            delivered = true
+            console.log(`  [发布器] 企业微信消息 ${sentCount}/${messages.length} 发送成功`)
+          } else {
+            console.error(`  [发布器] 企业微信发送失败: ${response.data?.errmsg}`)
+          }
+        } catch (error) {
+          if (attempt === 0) {
+            console.log(`  [发布器] 推送失败，2秒后重试...`)
+            await this.sleep(2000)
+          } else {
+            console.error(`  [发布器] 推送企业微信出错(已重试): ${(error as Error).message}`)
+          }
         }
-      } catch (error) {
-        console.error(`  [发布器] 推送企业微信出错: ${(error as Error).message}`)
       }
 
       // 消息间隔，避免被限流

@@ -88,19 +88,19 @@ export class ContentAnalyzer {
 【内容】${inputText}`
 
     try {
-      const result = await this.glm.chatJson<AnalysisResult>(
-        SYSTEM_PROMPT,
-        userPrompt
-      )
+      const raw = await this.glm.chatJson<unknown>(SYSTEM_PROMPT, userPrompt)
+      const result = this.validateAnalysisResult(raw)
 
+      const clamp = (v: number) => Math.max(1, Math.min(5, Math.round(v)))
       const score: ArticleScore = {
-        technicalDepth: result.score.technicalDepth,
-        practicalValue: result.score.practicalValue,
-        novelty: result.score.novelty,
-        epcRelevance: result.score.epcRelevance,
-        total: result.score.technicalDepth + result.score.practicalValue +
-               result.score.novelty + result.score.epcRelevance
+        technicalDepth: clamp(result.score.technicalDepth),
+        practicalValue: clamp(result.score.practicalValue),
+        novelty: clamp(result.score.novelty),
+        epcRelevance: clamp(result.score.epcRelevance),
+        total: 0
       }
+      score.total = score.technicalDepth + score.practicalValue +
+                    score.novelty + score.epcRelevance
 
       // 非干货直接返回标记
       if (!result.isDryGood) {
@@ -230,6 +230,36 @@ export class ContentAnalyzer {
     return topics
       .map(t => topicMap[t])
       .filter((t): t is EpcTopic => t !== undefined)
+  }
+
+  /**
+   * 验证AI返回的分析结果结构
+   */
+  private validateAnalysisResult(raw: unknown): AnalysisResult {
+    const r = raw as Record<string, unknown>
+    if (!r || typeof r !== 'object') {
+      throw new Error('AI返回无效的分析结果')
+    }
+
+    const rawScore = (r.score ?? {}) as Record<string, unknown>
+
+    return {
+      isDryGood: typeof r.isDryGood === 'boolean' ? r.isDryGood : false,
+      coreInsight: typeof r.coreInsight === 'string' ? r.coreInsight : '无法提取核心观点',
+      score: {
+        technicalDepth: typeof rawScore.technicalDepth === 'number'
+          ? rawScore.technicalDepth : 3,
+        practicalValue: typeof rawScore.practicalValue === 'number'
+          ? rawScore.practicalValue : 3,
+        novelty: typeof rawScore.novelty === 'number'
+          ? rawScore.novelty : 3,
+        epcRelevance: typeof rawScore.epcRelevance === 'number'
+          ? rawScore.epcRelevance : 3
+      },
+      topics: Array.isArray(r.topics)
+        ? (r.topics as unknown[]).filter((t): t is string => typeof t === 'string')
+        : []
+    }
   }
 
   /**

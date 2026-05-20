@@ -182,40 +182,4 @@ export class BriefingGenerator {
 
     return lines.join('\n')
   }
-
-  /**
-   * 将快报拆分为多条消息（企业微信单条消息长度限制）
-   */
-  splitForWeChat(markdown: string, maxLength: number = 3800): string[] {
-    if (Buffer.byteLength(markdown, 'utf-8') <= maxLength) {
-      return [markdown]
-    }
-
-    const messages: string[] = []
-    const lines = markdown.split('\n')
-    let currentMessage = ''
-
-    for (const line of lines) {
-      const testMessage = currentMessage ? `${currentMessage}\n${line}` : line
-
-      if (Buffer.byteLength(testMessage, 'utf-8') > maxLength) {
-        if (currentMessage) {
-          messages.push(currentMessage)
-          currentMessage = line
-        } else {
-          // 单行超长，强制截断
-          messages.push(line.substring(0, Math.floor(maxLength / 3)))
-          currentMessage = ''
-        }
-      } else {
-        currentMessage = testMessage
-      }
-    }
-
-    if (currentMessage) {
-      messages.push(currentMessage)
-    }
-
-    return messages
-  }
 }

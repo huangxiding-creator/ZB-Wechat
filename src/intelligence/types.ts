@@ -13,26 +13,26 @@ export interface ArticleScore {
 
 /** EPC话题分类枚举 */
 export enum EpcTopic {
-  CONTRACT = '合同管理'
-  , BIDDING = '招投标'
-  , CLAIMS = '索赔与争议'
-  , DESIGN = '设计管理'
-  , PROCUREMENT = '采购管理'
-  , CONSTRUCTION = '施工技术'
-  , SAFETY = '安全管理'
-  , QUALITY = '质量控制'
-  , COST = '造价管理'
-  , LEGAL = '法律法规'
-  , PROJECT_MGMT = '项目管理'
-  , DIGITAL = '数字化转型'
-  , OTHER = '综合前沿'
+  CONTRACT = '合同管理',
+  BIDDING = '招投标',
+  CLAIMS = '索赔与争议',
+  DESIGN = '设计管理',
+  PROCUREMENT = '采购管理',
+  CONSTRUCTION = '施工技术',
+  SAFETY = '安全管理',
+  QUALITY = '质量控制',
+  COST = '造价管理',
+  LEGAL = '法律法规',
+  PROJECT_MGMT = '项目管理',
+  DIGITAL = '数字化转型',
+  OTHER = '综合前沿'
 }
 
 /** 文章优先级 */
 export enum Priority {
-  MUST_READ = '🔥必读'
-  , RECOMMENDED = '⭐推荐'
-  , REFERENCE = '📌参考'
+  MUST_READ = '🔥必读',
+  RECOMMENDED = '⭐推荐',
+  REFERENCE = '📌参考'
 }
 
 /** 分析后的文章结果 */
