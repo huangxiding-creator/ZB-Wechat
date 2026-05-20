@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>总包公号情报系统</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+
+header{text-align:center;padding:24px 0 16px;border-bottom:1px solid #1e293b;margin-bottom:0}
+header h1{font-size:24px;color:#38bdf8;margin-bottom:4px}
+header p{color:#64748b;font-size:13px}
+
+/* Tabs */
+.tabs{display:flex;border-bottom:1px solid #1e293b;margin-bottom:20px}
+.tab{padding:12px 20px;cursor:pointer;color:#94a3b8;font-size:14px;border-bottom:2px solid transparent;transition:all .2s}
+.tab:hover{color:#e2e8f0}
+.tab.active{color:#38bdf8;border-bottom-color:#38bdf8}
+
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Cards */
+.card{background:#1e293b;border-radius:12px;padding:20px;margin-bottom:16px}
+.card-title{font-size:15px;font-weight:600;color:#e2e8f0;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card-title .icon{font-size:18px}
+
+/* Stats grid */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.stat-card{background:#1e293b;border-radius:10px;padding:16px;text-align:center}
+.stat-card .value{font-size:24px;font-weight:700;color:#38bdf8}
+.stat-card .label{font-size:12px;color:#94a3b8;margin-top:4px}
+.stat-card.success .value{color:#22c55e}
+.stat-card.warning .value{color:#eab308}
+.stat-card.danger .value{color:#ef4444}
+
+/* Status badge */
+.status-badge{display:inline-block;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:600}
+.status-badge.idle{background:#334155;color:#94a3b8}
+.status-badge.scanning{background:#1e3a5f;color:#38bdf8;animation:pulse 1.5s infinite}
+.status-badge.scheduled{background:#1e3a5f;color:#38bdf8}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* Buttons */
+.btn{padding:8px 20px;border-radius:8px;border:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:#3b82f6;color:#fff}
+.btn-primary:hover:not(:disabled){background:#2563eb}
+.btn-success{background:#22c55e;color:#fff}
+.btn-success:hover:not(:disabled){background:#16a34a}
+.btn-danger{background:#ef4444;color:#fff}
+.btn-danger:hover:not(:disabled){background:#dc2626}
+.btn-warning{background:#eab308;color:#000}
+.btn-warning:hover:not(:disabled){background:#ca8a04}
+.btn-ghost{background:transparent;color:#94a3b8;border:1px solid #334155}
+.btn-ghost:hover:not(:disabled){background:#1e293b;color:#e2e8f0}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+
+/* Form elements */
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;color:#94a3b8;margin-bottom:6px}
+.form-group input,.form-group select{width:100%;padding:8px 12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px}
+.form-group input:focus,.form-group select:focus{outline:none;border-color:#38bdf8}
+.form-group .hint{font-size:11px;color:#64748b;margin-top:4px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* Textarea */
+textarea{width:100%;height:400px;padding:12px;border-radius:8px;border:1px solid #334155;background:#0f172a;color:#e2e8f0;font-size:13px;font-family:'Consolas','Monaco',monospace;resize:vertical;line-height:1.5}
+textarea:focus{outline:none;border-color:#38bdf8}
+
+/* Progress */
+.progress-panel{background:#0f172a;border-radius:8px;padding:16px;margin-top:12px}
+.progress-bar{height:8px;background:#334155;border-radius:4px;overflow:hidden;margin:8px 0}
+.progress-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#22c55e);transition:width .3s}
+.progress-text{font-size:13px;color:#94a3b8}
+
+/* Settings sections */
+.settings-section{margin-bottom:24px}
+.settings-section-title{font-size:14px;font-weight:600;color:#38bdf8;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #334155;cursor:pointer;display:flex;align-items:center;gap:8px}
+.settings-section-title:hover{color:#7dd3fc}
+
+/* Archive list */
+.archive-item{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #0f172a;cursor:pointer;transition:background .2s}
+.archive-item:hover{background:#334155}
+.archive-item .name{font-size:14px;color:#e2e8f0}
+.archive-item .meta{font-size:12px;color:#64748b}
+.archive-item .size{font-size:12px;color:#94a3b8;margin-left:8px}
+
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);display:none;z-index:100;justify-content:center;align-items:center}
+.modal-overlay.active{display:flex}
+.modal{background:#1e293b;border-radius:12px;width:90%;max-width:900px;max-height:80vh;overflow:hidden;display:flex;flex-direction:column}
+.modal-header{padding:16px 20px;border-bottom:1px solid #334155;display:flex;justify-content:space-between;align-items:center}
+.modal-header h3{font-size:16px;color:#e2e8f0}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-body pre{white-space:pre-wrap;word-wrap:break-word;font-size:13px;line-height:1.6;color:#e2e8f0}
+
+/* Toast */
+.toast{position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;font-size:13px;z-index:200;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
+.toast.success{background:#14532d;color:#22c55e}
+.toast.error{background:#450a0a;color:#ef4444}
+.toast.info{background:#1e3a5f;color:#38bdf8}
+
+/* Password toggle */
+.input-wrapper{position:relative}
+.input-wrapper input{padding-right:40px}
+.toggle-pw{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:#64748b;cursor:pointer;font-size:12px}
+.toggle-pw:hover{color:#e2e8f0}
+
+.empty-state{text-align:center;padding:40px;color:#475569}
+.file-info{font-size:12px;color:#64748b;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>总包公号情报系统</h1>
+    <p>EPC工程情报智能采集、AI分析与推送</p>
+  </header>
+
+  <nav class="tabs">
+    <div class="tab active" data-tab="dashboard">仪表盘</div>
+    <div class="tab" data-tab="settings">设置</div>
+    <div class="tab" data-tab="accounts">公众号</div>
+    <div class="tab" data-tab="keywords">关键词</div>
+    <div class="tab" data-tab="archives">存档</div>
+  </nav>
+
+  <!-- Dashboard Tab -->
+  <div class="tab-content active" id="tab-dashboard">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span class="status-badge idle" id="statusBadge">空闲</span>
+      <span style="font-size:13px;color:#64748b" id="statusText"></span>
+    </div>
+    <div class="stats" id="statsGrid">
+      <div class="stat-card"><div class="value" id="stLastScan">-</div><div class="label">上次扫描</div></div>
+      <div class="stat-card"><div class="value" id="stNextScan">-</div><div class="label">下次扫描</div></div>
+      <div class="stat-card"><div class="value" id="stAccounts">-</div><div class="label">扫描公众号</div></div>
+      <div class="stat-card"><div class="value" id="stArticles">-</div><div class="label">相关文章</div></div>
+      <div class="stat-card success"><div class="value" id="stDryGoods">-</div><div class="label">干货文章</div></div>
+      <div class="stat-card warning"><div class="value" id="stDuration">-</div><div class="label">耗时(秒)</div></div>
+    </div>
+    <div class="btn-group" style="margin-bottom:16px">
+      <button class="btn btn-primary" onclick="startScan()" id="btnScan">立即扫描</button>
+      <button class="btn btn-success" onclick="startScheduler()" id="btnStartSched">启动调度</button>
+      <button class="btn btn-danger" onclick="stopScheduler()" id="btnStopSched" disabled>停止调度</button>
+    </div>
+    <div class="card" id="progressCard" style="display:none">
+      <div class="card-title"><span class="icon">&#x1F50D;</span> 扫描进度</div>
+      <div class="progress-panel">
+        <div class="progress-text" id="progressMsg">准备中...</div>
+        <div class="progress-bar"><div class="progress-fill" id="progressBar" style="width:0%"></div></div>
+        <div class="progress-text" id="progressDetail"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Tab -->
+  <div class="tab-content" id="tab-settings">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div class="card-title" style="margin-bottom:0">系统配置</div>
+        <div class="btn-group" style="margin-top:0">
+          <button class="btn btn-primary" onclick="saveConfig()">保存配置</button>
+          <button class="btn btn-ghost" onclick="resetConfig()">重置默认值</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">&#x1F50D; 扫描参数</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>扫描时间范围（小时）</label>
+            <input type="number" id="cfg-scanHours" min="1" max="168">
+            <div class="hint">扫描最近N小时内的文章</div>
+          </div>
+          <div class="form-group">
+            <label>每个账号扫描文章数</label>
+            <input type="number" id="cfg-articlesPerAccount" min="5" max="50">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>账号间最小延迟（ms）</label>
+            <input type="number" id="cfg-interAccountDelayMin" min="500" max="10000">
+          </div>
+          <div class="form-group">
+            <label>账号间随机附加延迟（ms）</label>
+            <input type="number" id="cfg-interAccountDelayMax" min="0" max="5000">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">&#x1F916; AI模型参数</div>
+        <div class="form-group">
+          <label>GLM API Key</label>
+          <div class="input-wrapper">
+            <input type="password" id="cfg-glm.apiKey" placeholder="智谱AI API密钥">
+            <button class="toggle-pw" onclick="togglePw('cfg-glm.apiKey')">显示</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>API地址</label>
+          <input type="text" id="cfg-glm.baseUrl">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>模型名称</label>
+            <input type="text" id="cfg-glm.model">
+          </div>
+          <div class="form-group">
+            <label>最大Token</label>
+            <input type="number" id="cfg-glm.maxTokens" min="256" max="8192">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Temperature</label>
+            <input type="number" id="cfg-glm.temperature" min="0" max="2" step="0.1">
+          </div>
+          <div class="form-group">
+            <label>请求最小间隔（ms）</label>
+            <input type="number" id="cfg-glm.minRequestInterval" min="50" max="5000">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>最大重试次数</label>
+          <input type="number" id="cfg-glm.maxRetries" min="0" max="10">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">&#x1F4CA; 分析参数</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>最低推送分数阈值</label>
+            <input type="number" id="cfg-minScore" min="1" max="20">
+            <div class="hint">总分低于此值的干货不推送</div>
+          </div>
+          <div class="form-group">
+            <label>内容截断长度（字符）</label>
+            <input type="number" id="cfg-contentTruncation" min="1000" max="20000">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>分析间隔（ms）</label>
+          <input type="number" id="cfg-interAnalysisDelay" min="100" max="5000">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">&#x23F0; 调度参数</div>
+        <div class="form-group">
+          <label>Cron表达式</label>
+          <input type="text" id="cfg-scheduleCron" placeholder="0 20 * * *">
+          <div class="hint">例: "0 20 * * *" = 每天20:00, "0 8,20 * * *" = 每天8:00和20:00</div>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">&#x1F4E4; 推送参数</div>
+        <div class="form-group">
+          <label>企业微信Webhook URL</label>
+          <div class="input-wrapper">
+            <input type="password" id="cfg-wecom.webhookUrl" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=...">
+            <button class="toggle-pw" onclick="togglePw('cfg-wecom.webhookUrl')">显示</button>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>单条消息最大长度（字节）</label>
+            <input type="number" id="cfg-wecom.maxMessageLength" min="1000" max="8000">
+          </div>
+          <div class="form-group">
+            <label>推送重试次数</label>
+            <input type="number" id="cfg-wecom.maxRetries" min="0" max="5">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>消息间隔（ms）</label>
+          <input type="number" id="cfg-wecom.messageDelay" min="500" max="5000">
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="settings-section-title">&#x1F4C1; 文件路径</div>
+        <div class="form-group">
+          <label>公众号列表文件</label>
+          <input type="text" id="cfg-accountListFile">
+        </div>
+        <div class="form-group">
+          <label>关键词文件</label>
+          <input type="text" id="cfg-keywordsFile">
+        </div>
+        <div class="form-group">
+          <label>存档目录</label>
+          <input type="text" id="cfg-archiveDir">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Accounts Tab -->
+  <div class="tab-content" id="tab-accounts">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">公众号监控列表</div>
+        <div class="btn-group" style="margin-top:0">
+          <button class="btn btn-primary" onclick="saveAccounts()">保存</button>
+          <button class="btn btn-ghost" onclick="loadAccounts()">重新加载</button>
+        </div>
+      </div>
+      <div class="file-info" id="accountsInfo"></div>
+      <textarea id="accountsContent" placeholder="加载中..."></textarea>
+    </div>
+  </div>
+
+  <!-- Keywords Tab -->
+  <div class="tab-content" id="tab-keywords">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div class="card-title" style="margin-bottom:0">关注领域关键词</div>
+        <div class="btn-group" style="margin-top:0">
+          <button class="btn btn-primary" onclick="saveKeywords()">保存</button>
+          <button class="btn btn-ghost" onclick="loadKeywords()">重新加载</button>
+        </div>
+      </div>
+      <div class="file-info" id="keywordsInfo"></div>
+      <textarea id="keywordsContent" placeholder="加载中..."></textarea>
+    </div>
+  </div>
+
+  <!-- Archives Tab -->
+  <div class="tab-content" id="tab-archives">
+    <div class="card">
+      <div class="card-title">历史情报存档</div>
+      <div id="archiveList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Archive Modal -->
+<div class="modal-overlay" id="archiveModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="archiveModalTitle">情报快报</h3>
+      <button class="btn btn-ghost" onclick="closeModal()">关闭</button>
+    </div>
+    <div class="modal-body">
+      <pre id="archiveModalContent"></pre>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+let eventSource = null;
+let currentConfig = {};
+
+// --- SSE ---
+function connectSSE() {
+  if (eventSource) eventSource.close();
+  eventSource = new EventSource('/api/events');
+  eventSource.addEventListener('status', e => handleSSE('status', e));
+  eventSource.addEventListener('scan-progress', e => handleSSE('scan-progress', e));
+  eventSource.addEventListener('scan-complete', e => handleSSE('scan-complete', e));
+  eventSource.addEventListener('config-updated', e => handleSSE('config-updated', e));
+  eventSource.onerror = () => setTimeout(connectSSE, 3000);
+}
+
+function handleSSE(type, e) {
+  const data = JSON.parse(e.data);
+  if (type === 'status' || type === 'scan-complete') updateStatus(data);
+  if (type === 'scan-progress') updateProgress(data);
+  if (type === 'config-updated') { currentConfig = data; populateSettings(data); }
+}
+
+// --- Tabs ---
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// --- Dashboard ---
+async function loadStatus() {
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    updateStatus(data);
+  } catch(e) { console.error('loadStatus', e); }
+}
+
+function updateStatus(data) {
+  const badge = document.getElementById('statusBadge');
+  const modeMap = { idle: '空闲', scanning: '扫描中...', scheduled: '已调度' };
+  badge.textContent = modeMap[data.mode] || '空闲';
+  badge.className = 'status-badge ' + data.mode;
+
+  document.getElementById('btnScan').disabled = data.isScanning;
+  document.getElementById('btnStartSched').disabled = data.isSchedulerRunning;
+  document.getElementById('btnStopSched').disabled = !data.isSchedulerRunning;
+
+  const stats = data.lastScanStats;
+  if (stats) {
+    document.getElementById('stAccounts').textContent = stats.accountsScanned || '-';
+    document.getElementById('stArticles').textContent = stats.articlesScanned || '-';
+    document.getElementById('stDryGoods').textContent = stats.dryGoodsFound || '-';
+    document.getElementById('stDuration').textContent = stats.durationMs ? Math.round(stats.durationMs / 1000) : '-';
+  }
+  if (data.lastScanTime) {
+    const d = new Date(data.lastScanTime);
+    document.getElementById('stLastScan').textContent = d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  }
+  if (data.nextScanTime) {
+    document.getElementById('stNextScan').textContent = new Date(data.nextScanTime).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+  }
+}
+
+function updateProgress(data) {
+  const card = document.getElementById('progressCard');
+  card.style.display = 'block';
+  document.getElementById('progressMsg').textContent = data.message || '';
+
+  const total = data.accountsTotal || 1;
+  const done = data.accountsScanned || 0;
+  const pct = Math.round(done / total * 100);
+  document.getElementById('progressBar').style.width = pct + '%';
+
+  const parts = [];
+  if (data.accountsScanned) parts.push(`公众号: ${data.accountsScanned}/${data.accountsTotal}`);
+  if (data.articlesScanned) parts.push(`文章: ${data.articlesScanned}`);
+  if (data.articlesAnalyzed) parts.push(`已分析: ${data.articlesAnalyzed}`);
+  if (data.dryGoodsFound) parts.push(`干货: ${data.dryGoodsFound}`);
+  if (data.errors) parts.push(`错误: ${data.errors}`);
+  if (data.currentAccount) parts.push(`当前: ${data.currentAccount}`);
+  document.getElementById('progressDetail').textContent = parts.join(' | ');
+
+  if (data.phase === 'complete' || data.phase === 'error') {
+    setTimeout(() => { card.style.display = 'none'; }, 5000);
+  }
+}
+
+async function startScan() {
+  try {
+    const res = await fetch('/api/run/scan', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) toast('扫描已启动', 'success');
+    else toast(data.error, 'error');
+  } catch(e) { toast('请求失败', 'error'); }
+}
+
+async function startScheduler() {
+  try {
+    const res = await fetch('/api/scheduler/start', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) toast('调度器已启动', 'success');
+    else toast(data.error, 'error');
+  } catch(e) { toast('请求失败', 'error'); }
+}
+
+async function stopScheduler() {
+  try {
+    const res = await fetch('/api/scheduler/stop', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) toast('调度器已停止', 'success');
+    else toast(data.error, 'error');
+  } catch(e) { toast('请求失败', 'error'); }
+}
+
+// --- Settings ---
+async function loadConfig() {
+  try {
+    const res = await fetch('/api/config');
+    currentConfig = await res.json();
+    populateSettings(currentConfig);
+  } catch(e) { console.error('loadConfig', e); }
+}
+
+function populateSettings(cfg) {
+  const fields = {
+    'cfg-scanHours': cfg.scanHours,
+    'cfg-articlesPerAccount': cfg.articlesPerAccount,
+    'cfg-interAccountDelayMin': cfg.interAccountDelayMin,
+    'cfg-interAccountDelayMax': cfg.interAccountDelayMax,
+    'cfg-glm.apiKey': cfg.glm?.apiKey,
+    'cfg-glm.baseUrl': cfg.glm?.baseUrl,
+    'cfg-glm.model': cfg.glm?.model,
+    'cfg-glm.maxTokens': cfg.glm?.maxTokens,
+    'cfg-glm.temperature': cfg.glm?.temperature,
+    'cfg-glm.minRequestInterval': cfg.glm?.minRequestInterval,
+    'cfg-glm.maxRetries': cfg.glm?.maxRetries,
+    'cfg-minScore': cfg.minScore,
+    'cfg-contentTruncation': cfg.contentTruncation,
+    'cfg-interAnalysisDelay': cfg.interAnalysisDelay,
+    'cfg-scheduleCron': cfg.scheduleCron,
+    'cfg-wecom.webhookUrl': cfg.wecom?.webhookUrl,
+    'cfg-wecom.maxMessageLength': cfg.wecom?.maxMessageLength,
+    'cfg-wecom.maxRetries': cfg.wecom?.maxRetries,
+    'cfg-wecom.messageDelay': cfg.wecom?.messageDelay,
+    'cfg-accountListFile': cfg.accountListFile,
+    'cfg-keywordsFile': cfg.keywordsFile,
+    'cfg-archiveDir': cfg.archiveDir
+  };
+  for (const [id, val] of Object.entries(fields)) {
+    const el = document.getElementById(id);
+    if (el && val !== undefined && val !== null) el.value = val;
+  }
+}
+
+function collectConfig() {
+  const read = (id) => { const el = document.getElementById(id); return el ? el.value : undefined; };
+  const readNum = (id) => { const v = read(id); return v !== undefined && v !== '' ? Number(v) : undefined; };
+  return {
+    scanHours: readNum('cfg-scanHours'),
+    articlesPerAccount: readNum('cfg-articlesPerAccount'),
+    interAccountDelayMin: readNum('cfg-interAccountDelayMin'),
+    interAccountDelayMax: readNum('cfg-interAccountDelayMax'),
+    minScore: readNum('cfg-minScore'),
+    contentTruncation: readNum('cfg-contentTruncation'),
+    interAnalysisDelay: readNum('cfg-interAnalysisDelay'),
+    scheduleCron: read('cfg-scheduleCron'),
+    accountListFile: read('cfg-accountListFile'),
+    keywordsFile: read('cfg-keywordsFile'),
+    archiveDir: read('cfg-archiveDir'),
+    glm: {
+      apiKey: read('cfg-glm.apiKey'),
+      baseUrl: read('cfg-glm.baseUrl'),
+      model: read('cfg-glm.model'),
+      maxTokens: readNum('cfg-glm.maxTokens'),
+      temperature: readNum('cfg-glm.temperature'),
+      minRequestInterval: readNum('cfg-glm.minRequestInterval'),
+      maxRetries: readNum('cfg-glm.maxRetries')
+    },
+    wecom: {
+      webhookUrl: read('cfg-wecom.webhookUrl'),
+      maxMessageLength: readNum('cfg-wecom.maxMessageLength'),
+      maxRetries: readNum('cfg-wecom.maxRetries'),
+      messageDelay: readNum('cfg-wecom.messageDelay')
+    }
+  };
+}
+
+async function saveConfig() {
+  try {
+    const cfg = collectConfig();
+    const res = await fetch('/api/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cfg) });
+    if (res.ok) toast('配置已保存', 'success');
+    else toast('保存失败', 'error');
+  } catch(e) { toast('请求失败', 'error'); }
+}
+
+async function resetConfig() {
+  if (!confirm('确定要重置所有配置为默认值吗？')) return;
+  try {
+    await fetch('/api/config/reset', { method: 'POST' });
+    await loadConfig();
+    toast('已重置为默认值', 'success');
+  } catch(e) { toast('请求失败', 'error'); }
+}
+
+function togglePw(id) {
+  const el = document.getElementById(id);
+  el.type = el.type === 'password' ? 'text' : 'password';
+}
+
+// --- Accounts ---
+async function loadAccounts() {
+  try {
+    const res = await fetch('/api/accounts');
+    const data = await res.json();
+    document.getElementById('accountsContent').value = data.content || '';
+    const lines = (data.content || '').split('\n').filter(l => l.trim() && !l.startsWith('#'));
+    document.getElementById('accountsInfo').textContent = `文件: ${data.path} | 有效账号: ${lines.length} 个`;
+  } catch(e) { toast('加载失败', 'error'); }
+}
+
+async function saveAccounts() {
+  try {
+    const content = document.getElementById('accountsContent').value;
+    await fetch('/api/accounts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
+    toast('公众号列表已保存', 'success');
+    loadAccounts();
+  } catch(e) { toast('保存失败', 'error'); }
+}
+
+// --- Keywords ---
+async function loadKeywords() {
+  try {
+    const res = await fetch('/api/keywords');
+    const data = await res.json();
+    document.getElementById('keywordsContent').value = data.content || '';
+    const lines = (data.content || '').split('\n').filter(l => l.trim() && !l.startsWith('#'));
+    document.getElementById('keywordsInfo').textContent = `文件: ${data.path} | 关键词: ${lines.length} 个`;
+  } catch(e) { toast('加载失败', 'error'); }
+}
+
+async function saveKeywords() {
+  try {
+    const content = document.getElementById('keywordsContent').value;
+    await fetch('/api/keywords', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) });
+    toast('关键词已保存', 'success');
+    loadKeywords();
+  } catch(e) { toast('保存失败', 'error'); }
+}
+
+// --- Archives ---
+async function loadArchives() {
+  try {
+    const res = await fetch('/api/archives');
+    const data = await res.json();
+    const list = document.getElementById('archiveList');
+    if (!data.files || data.files.length === 0) {
+      list.innerHTML = '<div class="empty-state">暂无存档</div>';
+      return;
+    }
+    list.innerHTML = data.files.map(f =>
+      `<div class="archive-item" onclick="viewArchive('${f.name}')">
+        <div><div class="name">${esc(f.name)}</div><div class="meta">${f.date}</div></div>
+        <div><span class="size">${(f.size / 1024).toFixed(1)} KB</span></div>
+      </div>`
+    ).join('');
+  } catch(e) { toast('加载失败', 'error'); }
+}
+
+async function viewArchive(name) {
+  try {
+    const res = await fetch('/api/archives/' + encodeURIComponent(name));
+    const data = await res.json();
+    document.getElementById('archiveModalTitle').textContent = data.name;
+    document.getElementById('archiveModalContent').textContent = data.content;
+    document.getElementById('archiveModal').classList.add('active');
+  } catch(e) { toast('加载失败', 'error'); }
+}
+
+function closeModal() {
+  document.getElementById('archiveModal').classList.remove('active');
+}
+
+document.getElementById('archiveModal').addEventListener('click', e => {
+  if (e.target.id === 'archiveModal') closeModal();
+});
+
+// --- Toast ---
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (type || 'info');
+  setTimeout(() => { el.className = 'toast'; }, 3000);
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+// --- Init ---
+connectSSE();
+loadStatus();
+loadConfig();
+loadAccounts();
+loadKeywords();
+loadArchives();
+</script>
+</body>
+</html>

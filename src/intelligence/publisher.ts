@@ -8,15 +8,29 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { IntelligenceBriefing } from './types'
 
+export interface PublisherOptions {
+  maxRetries?: number
+  messageDelay?: number
+}
+
 export class Publisher {
   private webhookUrl: string
   private archiveDir: string
   private maxMessageLength: number
+  private maxRetries: number
+  private messageDelay: number
 
-  constructor(webhookUrl: string, archiveDir: string, maxMessageLength: number = 3800) {
+  constructor(
+    webhookUrl: string,
+    archiveDir: string,
+    maxMessageLength: number = 3800,
+    options?: PublisherOptions
+  ) {
     this.webhookUrl = webhookUrl
     this.archiveDir = archiveDir
     this.maxMessageLength = maxMessageLength
+    this.maxRetries = options?.maxRetries ?? 2
+    this.messageDelay = options?.messageDelay ?? 1000
   }
 
   /**
@@ -51,7 +65,7 @@ export class Publisher {
     for (const msg of messages) {
       let delivered = false
 
-      for (let attempt = 0; attempt < 2 && !delivered; attempt++) {
+      for (let attempt = 0; attempt < this.maxRetries && !delivered; attempt++) {
         try {
           const response = await axios.post(
             this.webhookUrl,
@@ -84,7 +98,7 @@ export class Publisher {
 
       // 消息间隔，避免被限流
       if (messages.length > 1) {
-        await this.sleep(1000)
+        await this.sleep(this.messageDelay)
       }
     }
 

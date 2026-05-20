@@ -8,14 +8,31 @@ import * as path from 'path'
 import { WeChatAPI } from '../api'
 import { ScannedArticle } from './types'
 
+export interface ScannerOptions {
+  articlesPerAccount?: number
+  interAccountDelayMin?: number
+  interAccountDelayMax?: number
+}
+
 export class ArticleScanner {
   private api: WeChatAPI
   private keywords: string[]
   private scanHours: number
+  private articlesPerAccount: number
+  private interAccountDelayMin: number
+  private interAccountDelayMax: number
 
-  constructor(api: WeChatAPI, keywordsFile: string, scanHours: number) {
+  constructor(
+    api: WeChatAPI,
+    keywordsFile: string,
+    scanHours: number,
+    options?: ScannerOptions
+  ) {
     this.api = api
     this.scanHours = scanHours
+    this.articlesPerAccount = options?.articlesPerAccount ?? 20
+    this.interAccountDelayMin = options?.interAccountDelayMin ?? 1500
+    this.interAccountDelayMax = options?.interAccountDelayMax ?? 1000
     this.keywords = this.loadKeywords(keywordsFile)
   }
 
@@ -85,7 +102,7 @@ export class ArticleScanner {
       }
 
       // 账号间延迟，避免触发限流
-      await this.sleep(1500 + Math.random() * 1000)
+      await this.sleep(this.interAccountDelayMin + Math.random() * this.interAccountDelayMax)
     }
 
     // 按URL去重
@@ -116,8 +133,8 @@ export class ArticleScanner {
       return []
     }
 
-    // 获取最近的文章（只取第一页，通常20篇足够覆盖24小时）
-    const result = await this.api.getArticles(account.fakeid, 0, 20)
+    // 获取最近的文章
+    const result = await this.api.getArticles(account.fakeid, 0, this.articlesPerAccount)
 
     if (!result.articles || result.articles.length === 0) {
       return []

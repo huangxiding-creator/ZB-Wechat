@@ -13,6 +13,7 @@
     "dev": "ts-node src/index.ts",
     "intelligence": "ts-node src/intelligence/index.ts once",
     "intelligence:schedule": "ts-node src/intelligence/index.ts schedule",
+    "intelligence:ui": "ts-node src/intelligence/index.ts --ui",
     "clean": "rimraf dist coverage",
     "lint": "eslint src/**/*.ts --fix",
     "lint:check": "eslint src/**/*.ts",

@@ -23,40 +23,25 @@ import { ContentAnalyzer } from './analyzer'
 import { BriefingGenerator } from './briefing-generator'
 import { Publisher } from './publisher'
 import { Scheduler } from './scheduler'
+import { IntelligenceConfigManager } from './config'
 import {
   IntelligenceConfig,
   IntelligenceRunStats,
   IntelligenceBriefing
 } from './types'
 
-const VERSION = '1.0.0'
-
-const DEFAULT_CONFIG: IntelligenceConfig = {
-  scheduleCron: '0 20 * * *',
-  scanHours: 24,
-  minScore: 8,
-  accountListFile: '公众号监控列表.txt',
-  keywordsFile: '关注的领域.txt',
-  archiveDir: 'archives',
-  glm: {
-    apiKey: process.env.GLM_API_KEY || '',
-    baseUrl: process.env.GLM_BASE_URL || 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-    model: process.env.GLM_MODEL || 'glm-4-flash',
-    maxTokens: 2048,
-    temperature: 0.7
-  },
-  wecom: {
-    webhookUrl: process.env.WEWORK_WEBHOOK_URL || '',
-    maxMessageLength: 3800
-  }
-}
+const VERSION = '1.1.0'
 
 class IntelligenceSystem {
   private config: IntelligenceConfig
   private scheduler: Scheduler | null = null
 
   constructor(config?: Partial<IntelligenceConfig>) {
-    this.config = { ...DEFAULT_CONFIG, ...config }
+    const defaults = IntelligenceConfigManager.getDefault()
+    this.config = { ...defaults, ...config }
+    // Deep merge nested objects
+    if (config?.glm) this.config.glm = { ...defaults.glm, ...config.glm }
+    if (config?.wecom) this.config.wecom = { ...defaults.wecom, ...config.wecom }
     this.validateConfig()
   }
 
@@ -108,14 +93,26 @@ class IntelligenceSystem {
       const scanner = new ArticleScanner(
         wechatApi,
         this.config.keywordsFile,
-        this.config.scanHours
+        this.config.scanHours,
+        {
+          articlesPerAccount: this.config.articlesPerAccount,
+          interAccountDelayMin: this.config.interAccountDelayMin,
+          interAccountDelayMax: this.config.interAccountDelayMax
+        }
       )
-      const analyzer = new ContentAnalyzer(glmClient, this.config.minScore)
+      const analyzer = new ContentAnalyzer(glmClient, this.config.minScore, {
+        contentTruncation: this.config.contentTruncation,
+        interAnalysisDelay: this.config.interAnalysisDelay
+      })
       const generator = new BriefingGenerator()
       const publisher = new Publisher(
         this.config.wecom.webhookUrl,
         this.config.archiveDir,
-        this.config.wecom.maxMessageLength
+        this.config.wecom.maxMessageLength,
+        {
+          maxRetries: this.config.wecom.maxRetries,
+          messageDelay: this.config.wecom.messageDelay
+        }
       )
 
       // 2. 加载公众号列表
@@ -267,6 +264,29 @@ class IntelligenceSystem {
 // CLI入口
 async function main() {
   const args = process.argv.slice(2)
+
+  // UI mode
+  if (args.includes('--ui')) {
+    const portIdx = args.indexOf('--port')
+    const port = portIdx >= 0 && args[portIdx + 1]
+      ? parseInt(args[portIdx + 1]!, 10)
+      : 8080
+
+    const cfgManager = new IntelligenceConfigManager()
+    const system = new IntelligenceSystem(cfgManager.get())
+
+    const { createIntelligenceWebServer } = require('./web/server')
+    createIntelligenceWebServer(system, cfgManager, port)
+
+    console.log(chalk.gray('\n  按 Ctrl+C 退出\n'))
+    process.on('SIGINT', () => {
+      console.log(chalk.yellow('\n  正在停止...'))
+      process.exit(0)
+    })
+    return
+  }
+
+  // CLI mode
   const mode = args[0] || 'once'
   const cronArg = args.find(a => a.startsWith('--cron='))
 

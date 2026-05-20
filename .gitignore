@@ -43,6 +43,7 @@ archives/
 
 # Intelligence system data
 archives/
+intelligence.json
 
 # Test
 .test-data/

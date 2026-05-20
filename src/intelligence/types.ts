@@ -81,6 +81,16 @@ export interface IntelligenceConfig {
   scanHours: number
   /** 最低推送分数阈值 */
   minScore: number
+  /** 每个账号扫描文章数 */
+  articlesPerAccount: number
+  /** 账号间最小延迟(ms) */
+  interAccountDelayMin: number
+  /** 账号间随机附加延迟(ms) */
+  interAccountDelayMax: number
+  /** 内容截断长度 */
+  contentTruncation: number
+  /** 分析间隔(ms) */
+  interAnalysisDelay: number
   /** 公众号监控列表文件路径 */
   accountListFile: string
   /** 关注领域关键词文件路径 */
@@ -94,11 +104,15 @@ export interface IntelligenceConfig {
     model: string
     maxTokens: number
     temperature: number
+    minRequestInterval: number
+    maxRetries: number
   }
   /** 企业微信Webhook */
   wecom: {
     webhookUrl: string
     maxMessageLength: number
+    maxRetries: number
+    messageDelay: number
   }
 }
 

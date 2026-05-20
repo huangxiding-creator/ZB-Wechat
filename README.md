@@ -10,10 +10,11 @@
 
 总包公号情报系统是一位拥有20年以上工程总承包实战经验的"AI老专家"每天自动运行，为您：
 
-1. **扫描监控** — 定时扫描33+个工程总承包相关公众号的最新文章
+1. **扫描监控** — 定时扫描100+个工程总承包相关公众号的最新文章
 2. **智能筛选** — AI自动过滤新闻/广告/活动等非干货内容，只保留有实质价值的文章
 3. **深度分析** — 多维度评分（技术深度、实操价值、新颖度、EPC相关度）+ 智能话题分类
 4. **情报快报** — 生成"总包公号情报"Markdown快报，推送至企业微信
+5. **可视化管理** — Web UI界面，所有参数在线配置，实时查看扫描进度
 
 每天为您节省2-3小时的刷手机时间，同时不遗漏任何关键行业动态。
 
@@ -29,7 +30,8 @@
 | 定时运行 | 内置cron调度，默认每天20:00自动运行 |
 | 企业微信推送 | 通过Webhook直接推送快报到企业微信群 |
 | 本地存档 | 每日快报自动保存为Markdown文件，方便回溯 |
-| 用户可配置 | 监控列表、关键词、运行时间均可自定义 |
+| 用户可配置 | 所有参数均可通过Web UI或配置文件自定义 |
+| Web UI | 深色主题可视化管理界面，实时扫描进度，在线编辑配置 |
 
 ## 快速开始
 
@@ -113,15 +115,35 @@ npx playwright install chromium
 ### 运行
 
 ```bash
-# 执行一次情报采集（推荐首次使用）
+# 执行一次情报采集（推荐首次使用，默认CLI模式）
 npm run intelligence
 
 # 启动定时调度模式（每天20:00自动运行）
 npm run intelligence:schedule
 
+# 启动Web UI模式（浏览器自动打开，默认端口8080）
+npm run intelligence:ui
+
+# 指定端口启动Web UI
+npx ts-node src/intelligence/index.ts --ui --port 3000
+
 # 构建生产版本
 npm run build
 ```
+
+### Web UI 模式
+
+启动Web UI后，浏览器自动打开管理界面，包含五个功能模块：
+
+| 页面 | 功能 |
+|------|------|
+| 仪表盘 | 系统状态、统计卡片、立即扫描/调度控制、实时扫描进度 |
+| 设置 | 所有可配置参数（AI模型/扫描/分析/调度/推送/文件路径），在线修改并持久化 |
+| 公众号 | 在线编辑公众号监控列表，保留分类注释结构 |
+| 关键词 | 在线编辑关注领域关键词列表 |
+| 存档 | 浏览历史情报快报，在线查看Markdown内容 |
+
+所有配置修改自动保存到 `intelligence.json`，优先级：`intelligence.json` > `.env` > 默认值。
 
 ### 自定义运行时间
 
@@ -172,16 +194,21 @@ ZB-Wechat/
 ├── src/
 │   ├── intelligence/          # 情报系统核心模块
 │   │   ├── index.ts           # 主入口 & 编排器
+│   │   ├── config.ts          # 集中式配置管理器
 │   │   ├── types.ts           # 类型定义
 │   │   ├── glm-client.ts      # 智谱AI客户端
 │   │   ├── scanner.ts         # 公众号文章扫描器
 │   │   ├── analyzer.ts        # AI内容分析器
 │   │   ├── briefing-generator.ts  # 快报生成器
 │   │   ├── publisher.ts       # 企业微信+存档发布器
-│   │   └── scheduler.ts       # 定时调度器
+│   │   ├── scheduler.ts       # 定时调度器
+│   │   └── web/               # Web UI模块
+│   │       ├── server.ts      # Express API服务器 + SSE
+│   │       └── public/
+│   │           └── index.html # 深色主题SPA前端
 │   ├── api.ts                 # 微信API客户端
 │   ├── browser.ts             # 浏览器自动化
-│   ├── config.ts              # 配置管理
+│   ├── config.ts              # 文章导出器配置管理
 │   ├── downloader.ts          # 文章下载器
 │   ├── notification.ts        # 通知服务
 │   ├── rate-limiter.ts        # 速率限制 & 断路器
@@ -190,6 +217,7 @@ ZB-Wechat/
 ├── 公众号监控列表.txt           # 监控的公众号列表（可编辑）
 ├── 关注的领域.txt               # 关键词列表（可编辑）
 ├── archives/                  # 快报本地存档目录
+├── intelligence.json          # 情报系统配置（Web UI自动生成）
 ├── .env                       # 环境变量配置
 └── .api-key                   # 微信API密钥
 ```
@@ -245,6 +273,8 @@ ZB-Wechat/
 - **运行时**: Node.js 18+
 - **语言**: TypeScript
 - **AI引擎**: 智谱 GLM-4-Flash（免费）
+- **Web服务**: Express 5 + SSE实时推送
+- **前端**: 原生SPA（无框架依赖，深色主题）
 - **调度**: node-cron
 - **数据源**: 微信公众号API (down.mptext.top)
 - **推送**: 企业微信 Webhook
