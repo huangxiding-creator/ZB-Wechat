@@ -49,12 +49,14 @@ export class ArticleScanner {
     }
 
     const content = fs.readFileSync(resolvedPath, 'utf-8')
-    const accounts = content
+    const rawAccounts = content
       .split('\n')
       .map(line => line.trim())
       .filter(line => line.length > 0 && !line.startsWith('#'))
 
-    console.log(`  [扫描器] 加载了 ${accounts.length} 个监控公众号`)
+    // 去重
+    const accounts = [...new Set(rawAccounts)]
+    console.log(`  [扫描器] 加载了 ${accounts.length} 个监控公众号 (原始${rawAccounts.length}个，去重后)`)
     return accounts
   }
 
@@ -86,8 +88,16 @@ export class ArticleScanner {
       await this.sleep(1500 + Math.random() * 1000)
     }
 
-    console.log(`  [扫描器] 扫描完成: ${allArticles.length} 篇相关文章, ${errors.length} 个错误`)
-    return { articles: allArticles, errors }
+    // 按URL去重
+    const seenUrls = new Set<string>()
+    const uniqueArticles = allArticles.filter(a => {
+      if (seenUrls.has(a.link)) return false
+      seenUrls.add(a.link)
+      return true
+    })
+
+    console.log(`  [扫描器] 扫描完成: ${uniqueArticles.length} 篇相关文章 (去重前${allArticles.length}), ${errors.length} 个错误`)
+    return { articles: uniqueArticles, errors }
   }
 
   /**

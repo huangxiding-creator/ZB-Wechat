@@ -5,22 +5,6 @@
 
 import { AnalyzedArticle, IntelligenceBriefing, EpcTopic, Priority } from './types'
 
-const TOPIC_EMOJI: Record<string, string> = {
-  [EpcTopic.CONTRACT]: '📋',
-  [EpcTopic.BIDDING]: '🎯',
-  [EpcTopic.CLAIMS]: '⚖️',
-  [EpcTopic.DESIGN]: '📐',
-  [EpcTopic.PROCUREMENT]: '🛒',
-  [EpcTopic.CONSTRUCTION]: '🏗️',
-  [EpcTopic.SAFETY]: '🛡️',
-  [EpcTopic.QUALITY]: '✅',
-  [EpcTopic.COST]: '💰',
-  [EpcTopic.LEGAL]: '📜',
-  [EpcTopic.PROJECT_MGMT]: '📊',
-  [EpcTopic.DIGITAL]: '💻',
-  [EpcTopic.OTHER]: '🌐'
-}
-
 export class BriefingGenerator {
   /**
    * 生成完整快报
@@ -36,11 +20,11 @@ export class BriefingGenerator {
     // 按优先级排序：必读 > 推荐 > 参考
     const sorted = this.sortByPriority(dryGoods)
 
-    // 计算热门话题
+    // 计算热门话题（保留数据，不再在快报中展示标签）
     const trendingTopics = this.calculateTrendingTopics(sorted)
 
     // 生成Markdown
-    const markdown = this.generateMarkdown(sorted, totalScanned, date, trendingTopics)
+    const markdown = this.generateMarkdown(sorted, totalScanned, date)
 
     return {
       date,
@@ -98,8 +82,7 @@ export class BriefingGenerator {
   private generateMarkdown(
     articles: AnalyzedArticle[],
     totalScanned: number,
-    date: string,
-    trendingTopics: Array<{ topic: EpcTopic; count: number }>
+    date: string
   ): string {
     const lines: string[] = []
 
@@ -108,15 +91,6 @@ export class BriefingGenerator {
     lines.push('')
     lines.push(`**日期**: ${date}`)
     lines.push(`**扫描**: ${totalScanned} 篇 | **干货**: ${articles.length} 篇`)
-
-    // 热门话题标签
-    if (trendingTopics.length > 0) {
-      lines.push('')
-      lines.push(`**热点**: ${trendingTopics
-        .map(t => `${TOPIC_EMOJI[t.topic] || ''}${t.topic}(${t.count})`)
-        .join(' | ')}`)
-    }
-
     lines.push('')
     lines.push('---')
     lines.push('')
@@ -169,13 +143,8 @@ export class BriefingGenerator {
   private formatArticle(article: AnalyzedArticle): string {
     const lines: string[] = []
 
-    const topicTags = article.topics
-      .map(t => `${TOPIC_EMOJI[t] || ''}${t}`)
-      .join(' ')
-
     lines.push(`**${article.title}**`)
-    lines.push(`> 来源: ${article.accountName} | ${topicTags}`)
-    lines.push(`> 发布: ${article.publishTime}`)
+    lines.push(`> 来源: ${article.accountName}`)
     lines.push(`> 核心洞见: ${article.coreInsight}`)
     lines.push(`> [查看原文](${article.originalUrl})`)
     lines.push('')
