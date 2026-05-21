@@ -1,16 +1,20 @@
 /**
  * 快报发布器
- * 企业微信Webhook推送 + 本地文件存档
+ * 企业微信Webhook推送 + PDF生成 + 邮件发送 + 本地文件存档
  */
 
 import axios from 'axios'
 import * as fs from 'fs'
 import * as path from 'path'
 import { IntelligenceBriefing } from './types'
+import { BriefingGenerator } from './briefing-generator'
+import { PdfGenerator } from './pdf-generator'
+import { EmailSender, EmailConfig } from './email-sender'
 
 export interface PublisherOptions {
   maxRetries?: number
   messageDelay?: number
+  emailConfig?: EmailConfig
 }
 
 export class Publisher {
@@ -19,6 +23,7 @@ export class Publisher {
   private maxMessageLength: number
   private maxRetries: number
   private messageDelay: number
+  private emailConfig?: EmailConfig
 
   constructor(
     webhookUrl: string,
@@ -31,35 +36,59 @@ export class Publisher {
     this.maxMessageLength = maxMessageLength
     this.maxRetries = options?.maxRetries ?? 2
     this.messageDelay = options?.messageDelay ?? 1000
+    this.emailConfig = options?.emailConfig
   }
 
   /**
-   * 发布快报（企业微信 + 本地存档）
+   * 发布快报（企业微信 + PDF + 邮件 + 本地存档）
    */
-  async publish(briefing: IntelligenceBriefing): Promise<{
+  async publish(
+    briefing: IntelligenceBriefing,
+    generator: BriefingGenerator
+  ): Promise<{
     messagesSent: number
     archived: boolean
+    pdfGenerated: boolean
+    emailSent: boolean
   }> {
-    // 1. 本地存档
+    // 1. 本地存档（Markdown）
     const archived = this.archive(briefing)
 
-    // 2. 推送企业微信
-    const messagesSent = await this.pushToWeChat(briefing.markdown)
+    // 2. 生成PDF
+    let pdfGenerated = false
+    let emailSent = false
+    try {
+      const pdfGen = new PdfGenerator(this.archiveDir)
+      const pdfPath = await pdfGen.generate(briefing)
+      if (pdfPath) {
+        pdfGenerated = true
+        // 3. 发送邮件
+        if (this.emailConfig) {
+          const sender = new EmailSender(this.emailConfig)
+          emailSent = await sender.sendPdf(pdfPath, briefing.date)
+        }
+      }
+    } catch (error) {
+      console.error(`  [发布器] PDF/邮件处理出错: ${(error as Error).message}`)
+    }
 
-    return { messagesSent, archived }
+    // 4. 推送企业微信（使用纯文本格式，转发到个人微信也美观）
+    const plainText = generator.generatePlainText(briefing)
+    const messagesSent = await this.pushToWeChat(plainText)
+
+    return { messagesSent, archived, pdfGenerated, emailSent }
   }
 
   /**
-   * 推送到企业微信
+   * 推送到企业微信（text类型，纯文本格式）
    */
-  private async pushToWeChat(markdown: string): Promise<number> {
+  private async pushToWeChat(plainText: string): Promise<number> {
     if (!this.webhookUrl) {
       console.log('  [发布器] 企业微信Webhook未配置，跳过推送')
       return 0
     }
 
-    // 拆分长消息
-    const messages = this.splitMessage(markdown)
+    const messages = this.splitMessage(plainText)
     let sentCount = 0
 
     for (const msg of messages) {
@@ -70,8 +99,8 @@ export class Publisher {
           const response = await axios.post(
             this.webhookUrl,
             {
-              msgtype: 'markdown',
-              markdown: { content: msg }
+              msgtype: 'text',
+              text: { content: msg }
             },
             {
               timeout: 15000,
@@ -96,7 +125,6 @@ export class Publisher {
         }
       }
 
-      // 消息间隔，避免被限流
       if (messages.length > 1) {
         await this.sleep(this.messageDelay)
       }
@@ -127,15 +155,15 @@ export class Publisher {
   }
 
   /**
-   * 拆分消息（企业微信单条消息字节限制）
+   * 拆分消息
    */
-  private splitMessage(markdown: string): string[] {
-    if (Buffer.byteLength(markdown, 'utf-8') <= this.maxMessageLength) {
-      return [markdown]
+  private splitMessage(text: string): string[] {
+    if (Buffer.byteLength(text, 'utf-8') <= this.maxMessageLength) {
+      return [text]
     }
 
     const messages: string[] = []
-    const lines = markdown.split('\n')
+    const lines = text.split('\n')
     let current = ''
 
     for (const line of lines) {
@@ -158,11 +186,10 @@ export class Publisher {
       messages.push(current)
     }
 
-    // 为续篇消息添加序号
     if (messages.length > 1) {
-      messages[0] = `${messages[0]}\n\n> (第1/${messages.length}部分)`
+      messages[0] = `${messages[0]}\n\n(第1/${messages.length}部分)`
       for (let i = 1; i < messages.length; i++) {
-        messages[i] = `> 总包公号情报（续 第${i + 1}/${messages.length}部分）\n\n${messages[i]}`
+        messages[i] = `总包公号情报（续 第${i + 1}/${messages.length}部分）\n\n${messages[i]}`
       }
     }
 

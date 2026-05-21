@@ -30,7 +30,7 @@ export class BriefingGenerator {
     // 计算热门话题（保留数据，不再在快报中展示标签）
     const trendingTopics = this.calculateTrendingTopics(sorted)
 
-    // 生成Markdown
+    // 生成Markdown（用于PDF和存档）
     const markdown = this.generateMarkdown(sorted, totalScanned, date, accountsScanned)
 
     return {
@@ -42,6 +42,72 @@ export class BriefingGenerator {
       trendingTopics,
       markdown
     }
+  }
+
+  /**
+   * 生成企业微信纯文本格式（复制转发到个人微信也美观）
+   */
+  generatePlainText(briefing: IntelligenceBriefing): string {
+    const lines: string[] = []
+    const bar = '━━━━━━━━━━━━━━━━━━━━'
+
+    lines.push(bar)
+    lines.push('  总包公号情报')
+    lines.push(`  ${briefing.date}`)
+    lines.push(bar)
+    lines.push('')
+    lines.push(`扫描 ${briefing.totalScanned} 篇 · 干货 ${briefing.totalDryGood} 篇`)
+    lines.push('')
+
+    const mustRead = briefing.articles.filter(a => a.priority === Priority.MUST_READ)
+    const recommended = briefing.articles.filter(a => a.priority === Priority.RECOMMENDED)
+    const reference = briefing.articles.filter(a => a.priority === Priority.REFERENCE)
+
+    if (mustRead.length > 0) {
+      lines.push('🔥 必读')
+      lines.push(bar)
+      for (const a of mustRead) {
+        lines.push(`▎${a.title}`)
+        lines.push(`  来源: ${a.accountName} | ${a.publishTime}`)
+        lines.push(`  ${a.coreInsight}`)
+        lines.push(`  链接: ${a.originalUrl}`)
+        lines.push('')
+      }
+    }
+
+    if (recommended.length > 0) {
+      lines.push('⭐ 推荐')
+      lines.push(bar)
+      for (const a of recommended) {
+        lines.push(`▎${a.title}`)
+        lines.push(`  来源: ${a.accountName} | ${a.publishTime}`)
+        lines.push(`  ${a.coreInsight}`)
+        lines.push(`  链接: ${a.originalUrl}`)
+        lines.push('')
+      }
+    }
+
+    if (reference.length > 0) {
+      lines.push('📌 参考')
+      lines.push(bar)
+      for (const a of reference) {
+        lines.push(`▎${a.title}`)
+        lines.push(`  来源: ${a.accountName} | ${a.publishTime}`)
+        lines.push(`  ${a.coreInsight}`)
+        lines.push(`  链接: ${a.originalUrl}`)
+        lines.push('')
+      }
+    }
+
+    if (briefing.articles.length === 0) {
+      lines.push('今日暂无高价值干货文章。')
+      lines.push('所监控的公众号在过去24小时内没有发布与关注领域相关的实质性干货内容。')
+    }
+
+    lines.push(bar)
+    lines.push('总包生态圈AI · 每日为您精选EPC行业干货')
+
+    return lines.join('\n')
   }
 
   /**

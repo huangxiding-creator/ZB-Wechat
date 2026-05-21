@@ -21,7 +21,7 @@ import { GlmClient } from './glm-client'
 import { ArticleScanner } from './scanner'
 import { ContentAnalyzer } from './analyzer'
 import { BriefingGenerator } from './briefing-generator'
-import { Publisher } from './publisher'
+import { Publisher, PublisherOptions } from './publisher'
 import { Scheduler } from './scheduler'
 import { IntelligenceConfigManager } from './config'
 import {
@@ -105,14 +105,30 @@ class IntelligenceSystem {
         interAnalysisDelay: this.config.interAnalysisDelay
       })
       const generator = new BriefingGenerator()
+
+      const pubOptions: PublisherOptions = {
+        maxRetries: this.config.wecom.maxRetries,
+        messageDelay: this.config.wecom.messageDelay
+      }
+
+      const emailUser = process.env.EMAIL_USER || ''
+      const emailPass = process.env.EMAIL_PASS || ''
+      const emailTo = process.env.EMAIL_TO || ''
+      if (emailUser && emailPass && emailTo) {
+        pubOptions.emailConfig = {
+          host: process.env.EMAIL_HOST || 'smtp.qq.com',
+          port: parseInt(process.env.EMAIL_PORT || '465', 10),
+          user: emailUser,
+          pass: emailPass,
+          to: emailTo
+        }
+      }
+
       const publisher = new Publisher(
         this.config.wecom.webhookUrl,
         this.config.archiveDir,
         this.config.wecom.maxMessageLength,
-        {
-          maxRetries: this.config.wecom.maxRetries,
-          messageDelay: this.config.wecom.messageDelay
-        }
+        pubOptions
       )
 
       // 2. 加载公众号列表
@@ -131,7 +147,7 @@ class IntelligenceSystem {
 
         // 仍然生成空快报
         const briefing = generator.generate([], 0, this.getToday(), stats.accountsScanned)
-        await publisher.publish(briefing)
+        await publisher.publish(briefing, generator)
 
         stats.endTime = Date.now()
         stats.durationMs = stats.endTime - startTime
@@ -164,9 +180,9 @@ class IntelligenceSystem {
         stats.accountsScanned
       )
 
-      // 6. 发布
+      // 6. 发布（企业微信 + PDF + 邮件 + 存档）
       console.log(chalk.cyan('\n📡 发布快报...'))
-      const publishResult = await publisher.publish(briefing)
+      const publishResult = await publisher.publish(briefing, generator)
       stats.messagesSent = publishResult.messagesSent
 
       console.log(chalk.bold.green('\n✨ 情报采集完成!'))
