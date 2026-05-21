@@ -49,63 +49,48 @@ export class BriefingGenerator {
    */
   generatePlainText(briefing: IntelligenceBriefing): string {
     const lines: string[] = []
-    const bar = '━━━━━━━━━━━━━━━━━━━━'
+    const line = '───────────────'
 
-    lines.push(bar)
-    lines.push('  总包公号情报')
-    lines.push(`  ${briefing.date}`)
-    lines.push(bar)
-    lines.push('')
-    lines.push(`扫描 ${briefing.totalScanned} 篇 · 干货 ${briefing.totalDryGood} 篇`)
-    lines.push('')
+    lines.push(line)
+    lines.push('总包公号情报')
+    lines.push(briefing.date)
+    lines.push(line)
+    lines.push(`扫描${briefing.totalScanned}篇 | 干货${briefing.totalDryGood}篇`)
 
     const mustRead = briefing.articles.filter(a => a.priority === Priority.MUST_READ)
     const recommended = briefing.articles.filter(a => a.priority === Priority.RECOMMENDED)
     const reference = briefing.articles.filter(a => a.priority === Priority.REFERENCE)
 
-    if (mustRead.length > 0) {
-      lines.push('🔥 必读')
-      lines.push(bar)
-      for (const a of mustRead) {
-        lines.push(`▎${a.title}`)
-        lines.push(`  来源: ${a.accountName} | ${a.publishTime}`)
-        lines.push(`  ${a.coreInsight}`)
-        lines.push(`  链接: ${a.originalUrl}`)
+    const formatSection = (icon: string, title: string, articles: AnalyzedArticle[]) => {
+      if (articles.length === 0) return
+      lines.push('')
+      lines.push(`${icon}${title}(${articles.length}篇)`)
+      lines.push(line)
+      for (const a of articles) {
         lines.push('')
+        lines.push(`◆ ${a.title}`)
+        lines.push(`${a.accountName} | ${a.publishTime}`)
+        const insight = a.coreInsight.length > 60
+          ? a.coreInsight.substring(0, 57) + '...'
+          : a.coreInsight
+        lines.push(`${insight}`)
+        lines.push(`▸ ${a.originalUrl}`)
       }
     }
 
-    if (recommended.length > 0) {
-      lines.push('⭐ 推荐')
-      lines.push(bar)
-      for (const a of recommended) {
-        lines.push(`▎${a.title}`)
-        lines.push(`  来源: ${a.accountName} | ${a.publishTime}`)
-        lines.push(`  ${a.coreInsight}`)
-        lines.push(`  链接: ${a.originalUrl}`)
-        lines.push('')
-      }
-    }
-
-    if (reference.length > 0) {
-      lines.push('📌 参考')
-      lines.push(bar)
-      for (const a of reference) {
-        lines.push(`▎${a.title}`)
-        lines.push(`  来源: ${a.accountName} | ${a.publishTime}`)
-        lines.push(`  ${a.coreInsight}`)
-        lines.push(`  链接: ${a.originalUrl}`)
-        lines.push('')
-      }
-    }
+    formatSection('🔥', '必读', mustRead)
+    formatSection('⭐', '推荐', recommended)
+    formatSection('📌', '参考', reference)
 
     if (briefing.articles.length === 0) {
+      lines.push('')
       lines.push('今日暂无高价值干货文章。')
-      lines.push('所监控的公众号在过去24小时内没有发布与关注领域相关的实质性干货内容。')
+      lines.push('监控的公众号在过去24小时内未发布与关注领域相关的实质性干货。')
     }
 
-    lines.push(bar)
-    lines.push('总包生态圈AI · 每日为您精选EPC行业干货')
+    lines.push('')
+    lines.push(line)
+    lines.push('总包生态圈AI | 每日精选EPC干货')
 
     return lines.join('\n')
   }
