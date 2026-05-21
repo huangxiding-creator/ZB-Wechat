@@ -51,3 +51,9 @@ intelligence.json
 # Temporary
 tmp/
 temp/
+*.png
+search_results_*.txt
+*.pdf
+
+# Claude Code internal
+.claude/

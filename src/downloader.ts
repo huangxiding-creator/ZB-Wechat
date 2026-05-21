@@ -13,7 +13,7 @@ import ora from 'ora'
 const MERGE_SIZE = 300 // 每300个文件合并为一个
 const DOWNLOAD_RECORD_FILE = '.download-record.json' // 下载记录文件
 const MERGE_RECORD_FILE = '.merge-record.json' // 合并记录文件
-const DEFAULT_WEBHOOK_URL = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=REDACTED_WEBHOOK_KEY'
+const DEFAULT_WEBHOOK_URL = process.env.WEWORK_WEBHOOK_URL || ''
 
 interface DownloadStats {
   total: number
