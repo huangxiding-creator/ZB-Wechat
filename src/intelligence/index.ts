@@ -37,11 +37,11 @@ class IntelligenceSystem {
   private scheduler: Scheduler | null = null
 
   constructor(config?: Partial<IntelligenceConfig>) {
-    const defaults = IntelligenceConfigManager.getDefault()
-    this.config = { ...defaults, ...config }
-    // Deep merge nested objects
-    if (config?.glm) this.config.glm = { ...defaults.glm, ...config.glm }
-    if (config?.wecom) this.config.wecom = { ...defaults.wecom, ...config.wecom }
+    const cfgManager = new IntelligenceConfigManager()
+    const loaded = cfgManager.get()
+    this.config = { ...loaded, ...config }
+    if (config?.glm) this.config.glm = { ...loaded.glm, ...config.glm }
+    if (config?.wecom) this.config.wecom = { ...loaded.wecom, ...config.wecom }
     this.validateConfig()
   }
 

@@ -63,6 +63,7 @@ export interface ScannedArticle {
 export interface IntelligenceBriefing {
   date: string
   generatedAt: string
+  accountsScanned: number
   totalScanned: number
   totalDryGood: number
   articles: AnalyzedArticle[]

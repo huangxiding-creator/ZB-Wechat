@@ -36,6 +36,7 @@ export class BriefingGenerator {
     return {
       date,
       generatedAt: new Date().toLocaleString('zh-CN'),
+      accountsScanned,
       totalScanned,
       totalDryGood: sorted.length,
       articles: sorted,
@@ -49,13 +50,11 @@ export class BriefingGenerator {
    */
   generatePlainText(briefing: IntelligenceBriefing): string {
     const lines: string[] = []
-    const line = '───────────────'
 
-    lines.push(line)
     lines.push('总包公号情报')
     lines.push(briefing.date)
-    lines.push(line)
-    lines.push(`扫描${briefing.totalScanned}篇 | 干货${briefing.totalDryGood}篇`)
+    lines.push('')
+    lines.push(`扫描${briefing.accountsScanned}个公众号 | 阅读${briefing.totalScanned}篇 | 干货${briefing.totalDryGood}篇`)
 
     const mustRead = briefing.articles.filter(a => a.priority === Priority.MUST_READ)
     const recommended = briefing.articles.filter(a => a.priority === Priority.RECOMMENDED)
@@ -65,7 +64,6 @@ export class BriefingGenerator {
       if (articles.length === 0) return
       lines.push('')
       lines.push(`${icon}${title}(${articles.length}篇)`)
-      lines.push(line)
       for (const a of articles) {
         lines.push('')
         lines.push(`◆ ${a.title}`)
@@ -89,8 +87,8 @@ export class BriefingGenerator {
     }
 
     lines.push('')
-    lines.push(line)
-    lines.push('总包生态圈AI | 每日精选EPC干货')
+    lines.push('总包圈AI | 每日精选EPC干货')
+    lines.push('总包学园：https://epcschool.top')
 
     return lines.join('\n')
   }
