@@ -1,0 +1,5 @@
+# 接收情报的邮箱列表
+# 每行一个邮箱地址，#开头的行为注释
+# 示例：
+# your-email@qq.com
+# colleague@example.com

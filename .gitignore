@@ -57,3 +57,11 @@ search_results_*.txt
 
 # Claude Code internal
 .claude/
+
+# PM2 local files
+.pm2/
+run-intelligence.bat
+ecosystem.config.js
+
+# Local user data with personal info
+接收情报的邮箱列表.txt

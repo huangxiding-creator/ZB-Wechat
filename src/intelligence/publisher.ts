@@ -40,7 +40,7 @@ export class Publisher {
   }
 
   /**
-   * 发布快报（企业微信 + PDF + 邮件 + 本地存档）
+   * 发布快报（企业微信 + PDF + 批量邮件 + 本地存档）
    */
   async publish(
     briefing: IntelligenceBriefing,
@@ -62,10 +62,12 @@ export class Publisher {
       const pdfPath = await pdfGen.generate(briefing)
       if (pdfPath) {
         pdfGenerated = true
-        // 3. 发送邮件
+        // 3. 批量发送邮件到所有收件人
         if (this.emailConfig) {
           const sender = new EmailSender(this.emailConfig)
-          emailSent = await sender.sendPdf(pdfPath, briefing.date)
+          const result = await sender.sendPdfToAllRecipients(pdfPath, briefing.date)
+          emailSent = result.sent > 0
+          console.log(`  [发布器] 邮件发送完成: ${result.sent} 成功, ${result.failed} 失败`)
         }
       }
     } catch (error) {
