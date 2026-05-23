@@ -67,7 +67,6 @@ blockquote.must-read { background: #fff5f5; border-left: 4px solid #dc2626; }
 blockquote.recommended { background: #f0f7ff; border-left: 4px solid #2563eb; }
 blockquote.reference { background: #f8f9fa; border-left: 4px solid #d1d5db; }
 blockquote p { margin: 3px 0; }
-blockquote p:first-child { display: none; }
 a { color: #1d4ed8; text-decoration: none; border-bottom: 1px solid #bfdbfe; }
 hr { border: none; height: 1px; background: linear-gradient(90deg, transparent, #cbd5e1, transparent); margin: 18px 0; }
 em { color: #64748b; font-size: 11px; }
