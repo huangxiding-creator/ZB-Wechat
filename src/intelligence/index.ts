@@ -144,10 +144,15 @@ class IntelligenceSystem {
 
       if (scanResult.articles.length === 0) {
         console.log(chalk.yellow('\n  未发现与关注领域相关的新文章'))
+        console.log(chalk.yellow('  跳过推送（无文章时不发送空快报）'))
 
-        // 仍然生成空快报
+        // 仅存档，不推送企业微信/邮件/PDF
         const briefing = generator.generate([], 0, this.getToday(), stats.accountsScanned)
-        await publisher.publish(briefing, generator)
+        const archiveDir = this.config.archiveDir
+        const archivePath = path.join(archiveDir, `总包公号情报_${briefing.date.replace(/\//g, '-')}.md`)
+        if (!fs.existsSync(archiveDir)) fs.mkdirSync(archiveDir, { recursive: true })
+        fs.writeFileSync(archivePath, briefing.markdown, 'utf-8')
+        console.log(chalk.gray(`  已存档: ${archivePath}`))
 
         stats.endTime = Date.now()
         stats.durationMs = stats.endTime - startTime
