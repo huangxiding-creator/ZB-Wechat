@@ -1,7 +1,7 @@
 /**
  * PDF生成器
  * 使用 Playwright 将 Markdown 转为精美 PDF
- * 支持封面页、优先级颜色编码、页码页脚
+ * 支持封面页、优先级颜色编码
  */
 
 import { chromium, Browser } from 'playwright'
@@ -32,33 +32,33 @@ body {
   bottom: 0; left: 0; right: 0; height: 4px;
   background: linear-gradient(90deg, #c9a84c, #f0d78c, #c9a84c);
 }
-.cover-title { font-size: 36px; font-weight: 700; letter-spacing: 8px; margin-bottom: 12px; }
-.cover-subtitle { font-size: 14px; letter-spacing: 4px; color: #94a3b8; margin-bottom: 40px; }
-.cover-date { font-size: 22px; font-weight: 300; color: #f0d78c; letter-spacing: 3px; margin-bottom: 24px; }
+.cover-title { font-size: 44px; font-weight: 700; letter-spacing: 8px; margin-bottom: 12px; }
+.cover-subtitle { font-size: 22px; letter-spacing: 4px; color: #94a3b8; margin-bottom: 40px; }
+.cover-date { font-size: 30px; font-weight: 300; color: #f0d78c; letter-spacing: 3px; margin-bottom: 24px; }
 .cover-stats { display: flex; gap: 32px; margin-top: 20px; }
 .cover-stat { text-align: center; }
-.cover-stat-value { font-size: 28px; font-weight: 700; color: #38bdf8; }
-.cover-stat-label { font-size: 11px; color: #64748b; margin-top: 4px; letter-spacing: 1px; }
+.cover-stat-value { font-size: 36px; font-weight: 700; color: #38bdf8; }
+.cover-stat-label { font-size: 19px; color: #64748b; margin-top: 4px; letter-spacing: 1px; }
 .cover-divider { width: 60px; height: 1px; background: linear-gradient(90deg, transparent, #c9a84c, transparent); margin: 28px auto; }
-.cover-footer { position: absolute; bottom: 36px; text-align: center; color: #475569; font-size: 11px; letter-spacing: 1px; }
+.cover-footer { position: absolute; bottom: 36px; text-align: center; color: #475569; font-size: 19px; letter-spacing: 1px; }
 `
 
 const BODY_STYLES = `
-@page { size: A4; margin: 18mm 16mm 26mm 16mm; }
+@page { size: A4; margin: 18mm 16mm 18mm 16mm; }
 body {
   font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
-  color: #1e293b; line-height: 1.75; font-size: 17px; letter-spacing: 0.5px;
+  color: #1e293b; line-height: 1.75; font-size: 25px; letter-spacing: 0.5px;
 }
 h2 { display: none; }
 h3 {
-  font-size: 17px; margin-top: 22px; margin-bottom: 10px;
+  font-size: 25px; margin-top: 22px; margin-bottom: 10px;
   padding: 6px 0 6px 12px; border-radius: 4px;
 }
 h3.must-read { color: #dc2626; background: #fef2f2; border-left: 4px solid #dc2626; }
 h3.recommended { color: #1d4ed8; background: #eff6ff; border-left: 4px solid #2563eb; }
 h3.reference { color: #6b7280; background: #f9fafb; border-left: 4px solid #9ca3af; }
 p { margin: 6px 0; }
-strong { color: #0f172a; font-size: 17.5px; }
+strong { color: #0f172a; font-size: 25.5px; }
 blockquote {
   margin: 8px 0 14px; padding: 10px 14px;
   border-radius: 0 6px 6px 0; page-break-inside: avoid;
@@ -69,17 +69,9 @@ blockquote.reference { background: #f8f9fa; border-left: 4px solid #d1d5db; }
 blockquote p { margin: 3px 0; }
 a { color: #1d4ed8; text-decoration: none; border-bottom: 1px solid #bfdbfe; }
 hr { border: none; height: 1px; background: linear-gradient(90deg, transparent, #cbd5e1, transparent); margin: 18px 0; }
-em { color: #64748b; font-size: 11px; }
+em { color: #64748b; font-size: 19px; }
 .header-banner { display: none; }
-.article-empty { text-align: center; padding: 40px 0; color: #94a3b8; font-size: 15px; }
-
-.page-footer {
-  position: fixed; bottom: -20mm; left: 0; right: 0;
-  height: 14mm; display: flex; justify-content: space-between; align-items: center;
-  padding: 0 16mm; font-size: 7.5pt; color: #94a3b8;
-  border-top: 0.5px solid #e2e8f0;
-}
-.page-footer span { display: inline-block; }
+.article-empty { text-align: center; padding: 40px 0; color: #94a3b8; font-size: 23px; }
 `
 
 export class PdfGenerator {
@@ -103,7 +95,6 @@ export class PdfGenerator {
         browser = await chromium.launch({ headless: true })
         const page = await browser.newPage()
 
-        // 1. Render cover page
         await page.setContent(this.buildCoverHtml(briefing), { waitUntil: 'networkidle' })
         const coverBytes = await page.pdf({
           format: 'A4',
@@ -111,15 +102,13 @@ export class PdfGenerator {
           printBackground: true
         })
 
-        // 2. Render body pages with footer
         await page.setContent(this.buildBodyHtml(briefing), { waitUntil: 'networkidle' })
         const bodyBytes = await page.pdf({
           format: 'A4',
-          margin: { top: '18mm', bottom: '26mm', left: '16mm', right: '16mm' },
+          margin: { top: '18mm', bottom: '18mm', left: '16mm', right: '16mm' },
           printBackground: true
         })
 
-        // 3. Merge cover + body using pdf-lib
         const mergedDoc = await PDFDocument.create()
 
         const coverDoc = await PDFDocument.load(coverBytes)
@@ -180,11 +169,7 @@ export class PdfGenerator {
     let html = `<!DOCTYPE html>
 <html lang="zh-CN">
 <head><meta charset="UTF-8"><style>${BODY_STYLES}</style></head>
-<body>
-<div class="page-footer">
-  <span>总包公号情报 | ${briefing.date}</span>
-  <span>总包圈AI出品</span>
-</div>\n`
+<body>\n`
 
     for (const section of sections) {
       html += `<h3 class="${section.cssClass}">${section.icon} ${section.title} (${section.articles.length}篇)</h3>\n`

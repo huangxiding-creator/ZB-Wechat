@@ -111,13 +111,16 @@ export class WeChatAPI {
       } catch (error) {
         lastError = error as Error
 
-        // 检测429限流错误
-        if (error instanceof AxiosError && error.response?.status === 429) {
+        // 检测限流（HTTP 429 或 API freq control）
+        const errMsg = (error as Error).message || ''
+        const isFreqControl = errMsg.includes('freq control')
+        if (error instanceof AxiosError && error.response?.status === 429 || isFreqControl) {
           this.rateLimiter.report429()
           this.circuitBreaker.reportFailure()
           this.consecutive429++
-          this.currentDelay = Math.min(10000, this.currentDelay * 2)
-          logger.warn(`${operationName}: 限流检测`, { attempt: attempt + 1, delay: this.currentDelay })
+          // freq control 使用更长的退避（10s起，最大60s）
+          this.currentDelay = Math.min(isFreqControl ? 60000 : 10000, this.currentDelay * 2)
+          logger.warn(`${operationName}: 限流检测 (#${this.consecutive429})`, { attempt: attempt + 1, delay: this.currentDelay })
         } else {
           this.rateLimiter.reportError()
           this.circuitBreaker.reportFailure()
@@ -157,7 +160,11 @@ export class WeChatAPI {
         const response = await this.client.get('/api/public/v1/account', {
           params: { keyword, begin, size }
         })
-        return response.data
+        const data = response.data
+        if (data?.base_resp?.ret === 200013 || data?.base_resp?.err_msg?.includes('freq control')) {
+          throw new Error('API频率控制 (freq control)')
+        }
+        return data
       },
       '搜索公众号'
     )
@@ -260,13 +267,15 @@ export class WeChatAPI {
           params: { fakeid, begin, size }
         })
 
-        // 验证响应是否为有效的 API 响应（而非 Cloudflare HTML）
         const data = response.data
         if (typeof data === 'string' && data.includes('<!DOCTYPE html>')) {
           throw new Error('API 返回了 Cloudflare 验证页面，请稍后重试')
         }
         if (!data || typeof data !== 'object') {
           throw new Error('API 返回了无效的响应')
+        }
+        if (data?.base_resp?.ret === 200013 || data?.base_resp?.err_msg?.includes('freq control')) {
+          throw new Error('API频率控制 (freq control)')
         }
 
         return data
