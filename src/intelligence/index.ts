@@ -102,9 +102,11 @@ class IntelligenceSystem {
       )
       const analyzer = new ContentAnalyzer(glmClient, this.config.minScore, {
         contentTruncation: this.config.contentTruncation,
-        interAnalysisDelay: this.config.interAnalysisDelay
+        interAnalysisDelay: this.config.interAnalysisDelay,
+        mustReadThreshold: this.config.mustReadThreshold,
+        recommendedThreshold: this.config.recommendedThreshold
       })
-      const generator = new BriefingGenerator()
+      const generator = new BriefingGenerator(this.config.maxSelectedArticles)
 
       const pubOptions: PublisherOptions = {
         maxRetries: this.config.wecom.maxRetries,
@@ -185,6 +187,10 @@ class IntelligenceSystem {
         stats.accountsScanned
       )
 
+      if (stats.dryGoodsFound > briefing.totalDryGood) {
+        console.log(chalk.yellow(`  精选裁剪: ${stats.dryGoodsFound}篇干货 → ${briefing.totalDryGood}篇精选`))
+      }
+
       // 6. 发布（企业微信 + PDF + 邮件 + 存档）
       console.log(chalk.cyan('\n📡 发布快报...'))
       const publishResult = await publisher.publish(briefing, generator)
@@ -193,7 +199,7 @@ class IntelligenceSystem {
       console.log(chalk.bold.green('\n✨ 情报采集完成!'))
       console.log(chalk.gray(`  扫描公众号: ${stats.accountsScanned} 个`))
       console.log(chalk.gray(`  相关文章: ${stats.articlesScanned} 篇`))
-      console.log(chalk.gray(`  干货文章: ${stats.dryGoodsFound} 篇`))
+      console.log(chalk.gray(`  干货文章: ${stats.dryGoodsFound} 篇 → 精选 ${briefing.totalDryGood} 篇`))
       console.log(chalk.gray(`  消息推送: ${stats.messagesSent} 条`))
       console.log(chalk.gray(`  GLM调用: ${glmClient.getRequestCount()} 次`))
 

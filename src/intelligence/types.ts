@@ -82,6 +82,12 @@ export interface IntelligenceConfig {
   scanHours: number
   /** 最低推送分数阈值 */
   minScore: number
+  /** 精选文章上限（必读+推荐合计） */
+  maxSelectedArticles: number
+  /** 必读最低总分阈值 */
+  mustReadThreshold: number
+  /** 推荐最低总分阈值 */
+  recommendedThreshold: number
   /** 每个账号扫描文章数 */
   articlesPerAccount: number
   /** 账号间最小延迟(ms) */

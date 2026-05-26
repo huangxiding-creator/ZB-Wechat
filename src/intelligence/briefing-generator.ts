@@ -6,6 +6,12 @@
 import { AnalyzedArticle, IntelligenceBriefing, EpcTopic, Priority } from './types'
 
 export class BriefingGenerator {
+  private maxSelectedArticles: number
+
+  constructor(maxSelectedArticles: number = 10) {
+    this.maxSelectedArticles = maxSelectedArticles
+  }
+
   /**
    * 生成完整快报
    */
@@ -24,25 +30,62 @@ export class BriefingGenerator {
       return true
     })
 
-    // 按优先级排序：必读 > 推荐 > 参考
+    // 按优先级排序：必读 > 推荐 > 参考，同优先级按总分降序
     const sorted = this.sortByPriority(unique)
 
+    // 精选裁剪: 控制最终输出数量
+    const selected = this.selectTopArticles(sorted)
+
     // 计算热门话题（保留数据，不再在快报中展示标签）
-    const trendingTopics = this.calculateTrendingTopics(sorted)
+    const trendingTopics = this.calculateTrendingTopics(selected)
 
     // 生成Markdown（用于PDF和存档）
-    const markdown = this.generateMarkdown(sorted, totalScanned, date, accountsScanned)
+    const markdown = this.generateMarkdown(selected, totalScanned, date, accountsScanned)
 
     return {
       date,
       generatedAt: new Date().toLocaleString('zh-CN'),
       accountsScanned,
       totalScanned,
-      totalDryGood: sorted.length,
-      articles: sorted,
+      totalDryGood: selected.length,
+      articles: selected,
       trendingTopics,
       markdown
     }
+  }
+
+  /**
+   * 精选裁剪: 必读全保留，推荐按分数补位，总计不超过上限
+   */
+  private selectTopArticles(sorted: AnalyzedArticle[]): AnalyzedArticle[] {
+    if (sorted.length <= this.maxSelectedArticles) return sorted
+
+    const mustRead = sorted.filter(a => a.priority === Priority.MUST_READ)
+    const recommended = sorted.filter(a => a.priority === Priority.RECOMMENDED)
+    const reference = sorted.filter(a => a.priority === Priority.REFERENCE)
+
+    // 必读全部保留（已经过严格筛选）
+    const selected = [...mustRead]
+
+    // 推荐按分数补位
+    const remaining = this.maxSelectedArticles - selected.length
+    if (remaining > 0) {
+      const topRecommended = [...recommended]
+        .sort((a, b) => b.score.total - a.score.total)
+        .slice(0, remaining)
+      selected.push(...topRecommended)
+    }
+
+    // 如果必读+推荐仍不足上限，用参考文章补位
+    if (selected.length < this.maxSelectedArticles) {
+      const remaining2 = this.maxSelectedArticles - selected.length
+      const topReference = [...reference]
+        .sort((a, b) => b.score.total - a.score.total)
+        .slice(0, remaining2)
+      selected.push(...topReference)
+    }
+
+    return selected
   }
 
   /**
