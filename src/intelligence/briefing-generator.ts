@@ -64,8 +64,11 @@ export class BriefingGenerator {
     const recommended = sorted.filter(a => a.priority === Priority.RECOMMENDED)
     const reference = sorted.filter(a => a.priority === Priority.REFERENCE)
 
-    // 必读全部保留（已经过严格筛选）
-    const selected = [...mustRead]
+    // 必读取前3篇（按总分排序）
+    const topMustRead = [...mustRead]
+      .sort((a, b) => b.score.total - a.score.total)
+      .slice(0, 3)
+    const selected = [...topMustRead]
 
     // 推荐按分数补位
     const remaining = this.maxSelectedArticles - selected.length
