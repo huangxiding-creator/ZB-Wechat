@@ -58,6 +58,37 @@ class IntelligenceSystem {
   }
 
   /**
+   * 验证API密钥是否有效（session未过期）
+   */
+  private async validateApiKey(apiKey: string): Promise<void> {
+    const axios = await import('axios')
+    try {
+      const resp = await axios.default.get('https://down.mptext.top/api/public/v1/article', {
+        params: { fakeid: 'MzA5OTcxOTcxMw==', begin: 0, size: 1 },
+        headers: {
+          'X-Auth-Key': apiKey,
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        },
+        timeout: 15000
+      })
+      const ret = resp.data?.base_resp?.ret
+      if (ret === 200003) {
+        throw new Error(
+          'API密钥已过期（session失效）。请运行 npx ts-node src/index.ts 重新扫码登录获取新密钥'
+        )
+      }
+      if (ret !== 0) {
+        console.log(chalk.yellow(`  ⚠ API返回异常: ret=${ret}, msg=${resp.data?.base_resp?.err_msg}`))
+      }
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('API密钥已过期')) {
+        throw error
+      }
+      console.log(chalk.yellow('  ⚠ API密钥验证请求失败，将继续尝试'))
+    }
+  }
+
+  /**
    * 执行一次情报采集
    */
   async runOnce(): Promise<IntelligenceRunStats> {
@@ -81,6 +112,7 @@ class IntelligenceSystem {
     try {
       // 1. 初始化组件
       const apiKey = this.loadWeChatApiKey()
+      await this.validateApiKey(apiKey)
       const wechatApi = new WeChatAPI(apiKey)
       const glmClient = new GlmClient({
         apiKey: this.config.glm.apiKey,
@@ -191,9 +223,24 @@ class IntelligenceSystem {
         console.log(chalk.yellow(`  精选裁剪: ${stats.dryGoodsFound}篇干货 → ${briefing.totalDryGood}篇精选`))
       }
 
-      // 6. 发布（企业微信 + PDF + 邮件 + 存档）
+      // 6. 发布（企业微信 + PDF + 邮件 + 存档），网络失败自动重试
       console.log(chalk.cyan('\n📡 发布快报...'))
-      const publishResult = await publisher.publish(briefing, generator)
+      const MAX_PUBLISH_RETRIES = 5
+      const RETRY_INTERVAL_MS = 15 * 60 * 1000
+      let publishResult = await publisher.publish(briefing, generator)
+      let retryCount = 0
+
+      while (retryCount < MAX_PUBLISH_RETRIES) {
+        const wechatFailed = !!this.config.wecom.webhookUrl && publishResult.messagesSent === 0
+        const emailFailed = !!process.env.EMAIL_USER && !!process.env.EMAIL_PASS && !publishResult.emailSent
+        if (!wechatFailed && !emailFailed) break
+
+        retryCount++
+        console.log(chalk.yellow(`\n  ⚠ 发布失败（企业微信: ${publishResult.messagesSent}条, 邮件: ${publishResult.emailSent ? '成功' : '失败'}），${RETRY_INTERVAL_MS / 60000}分钟后第${retryCount}次重试...`))
+        await new Promise(r => setTimeout(r, RETRY_INTERVAL_MS))
+        publishResult = await publisher.publish(briefing, generator)
+      }
+
       stats.messagesSent = publishResult.messagesSent
 
       console.log(chalk.bold.green('\n✨ 情报采集完成!'))
@@ -202,6 +249,9 @@ class IntelligenceSystem {
       console.log(chalk.gray(`  干货文章: ${stats.dryGoodsFound} 篇 → 精选 ${briefing.totalDryGood} 篇`))
       console.log(chalk.gray(`  消息推送: ${stats.messagesSent} 条`))
       console.log(chalk.gray(`  GLM调用: ${glmClient.getRequestCount()} 次`))
+      if (retryCount > 0) {
+        console.log(chalk.gray(`  发布重试: ${retryCount} 次`))
+      }
 
       if (stats.errors.length > 0) {
         console.log(chalk.yellow(`  错误: ${stats.errors.length} 个`))
